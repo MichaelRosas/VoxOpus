@@ -1,10 +1,15 @@
-import { useState, type SubmitEvent } from 'react'
+import { useEffect, useState, type SubmitEvent } from 'react'
 import type { Task } from 'shared'
+import { loadTasks, saveTasks } from './storage'
 import './App.css'
 
 function App() {
-  const [tasks, setTasks] = useState<Task[]>([])
+  const [tasks, setTasks] = useState<Task[]>(loadTasks)
   const [title, setTitle] = useState('')
+
+  useEffect(() => {
+    saveTasks(tasks)
+  }, [tasks])
 
   function handleSubmit(event: SubmitEvent<HTMLFormElement>) {
     event.preventDefault()
