@@ -1,13 +1,4 @@
 import express from "express";
-import { TodoSchema } from "shared";
-
-const exampleTodo = TodoSchema.parse({
-  id: "example-1",
-  title: "Test the shared package",
-  completed: false,
-});
-
-console.log(exampleTodo);
 
 const app = express();
 const port = 3001;
