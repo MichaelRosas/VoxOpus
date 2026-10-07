@@ -15,11 +15,11 @@ export function TaskList({
   onDelete,
 }: TaskListProps) {
   if (tasks.length === 0) {
-    return <p>No tasks yet.</p>
+    return <p className="empty-state">No tasks yet. Add a task to get started.</p>
   }
 
   return (
-    <ul>
+    <ul className="task-list">
       {tasks.map((task) => (
         <TaskItem
           key={task.id}
