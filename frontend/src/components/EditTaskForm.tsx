@@ -39,7 +39,7 @@ export function EditTaskForm({
   }
 
   return (
-    <form onSubmit={handleSubmit}>
+    <form className="task-form" onSubmit={handleSubmit}>
       <label htmlFor={`edit-title-${task.id}`}>Task</label>
       <input
         id={`edit-title-${task.id}`}
@@ -48,26 +48,31 @@ export function EditTaskForm({
         onChange={(event) => setTitle(event.target.value)}
       />
 
-      <label htmlFor={`edit-due-${task.id}`}>Due date</label>
-      <input
-        id={`edit-due-${task.id}`}
-        type="datetime-local"
-        value={dueAtInput}
-        onChange={(event) => setDueAtInput(event.target.value)}
-      />
+      <fieldset className="schedule-fields">
+        <legend>Schedule (optional)</legend>
+        <label htmlFor={`edit-due-${task.id}`}>Due date</label>
+        <input
+          id={`edit-due-${task.id}`}
+          type="datetime-local"
+          value={dueAtInput}
+          onChange={(event) => setDueAtInput(event.target.value)}
+        />
 
-      <label htmlFor={`edit-reminder-${task.id}`}>Reminder</label>
-      <input
-        id={`edit-reminder-${task.id}`}
-        type="datetime-local"
-        value={reminderAtInput}
-        onChange={(event) => setReminderAtInput(event.target.value)}
-      />
+        <label htmlFor={`edit-reminder-${task.id}`}>Reminder</label>
+        <input
+          id={`edit-reminder-${task.id}`}
+          type="datetime-local"
+          value={reminderAtInput}
+          onChange={(event) => setReminderAtInput(event.target.value)}
+        />
+      </fieldset>
 
-      <button type="submit">Save</button>
-      <button type="button" onClick={onCancel}>
-        Cancel
-      </button>
+      <div className="form-actions">
+        <button className="primary-button" type="submit">Save</button>
+        <button type="button" onClick={onCancel}>
+          Cancel
+        </button>
+      </div>
     </form>
   )
 }

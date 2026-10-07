@@ -35,7 +35,7 @@ export function CreateTaskForm({ onCreate }: CreateTaskFormProps) {
   }
 
   return (
-    <form onSubmit={handleSubmit}>
+    <form className="task-form" onSubmit={handleSubmit}>
       <label htmlFor="task-title">New task</label>
       <input
         id="task-title"
@@ -45,23 +45,28 @@ export function CreateTaskForm({ onCreate }: CreateTaskFormProps) {
         placeholder="What needs to be done?"
       />
 
-      <label htmlFor="task-due-at">Due date</label>
-      <input
-        id="task-due-at"
-        type="datetime-local"
-        value={dueAtInput}
-        onChange={(event) => setDueAtInput(event.target.value)}
-      />
+      <fieldset className="schedule-fields">
+        <legend>Schedule (optional)</legend>
+        <label htmlFor="task-due-at">Due date</label>
+        <input
+          id="task-due-at"
+          type="datetime-local"
+          value={dueAtInput}
+          onChange={(event) => setDueAtInput(event.target.value)}
+        />
 
-      <label htmlFor="task-reminder-at">Reminder</label>
-      <input
-        id="task-reminder-at"
-        type="datetime-local"
-        value={reminderAtInput}
-        onChange={(event) => setReminderAtInput(event.target.value)}
-      />
+        <label htmlFor="task-reminder-at">Reminder</label>
+        <input
+          id="task-reminder-at"
+          type="datetime-local"
+          value={reminderAtInput}
+          onChange={(event) => setReminderAtInput(event.target.value)}
+        />
+      </fieldset>
 
-      <button type="submit">Add task</button>
+      <div className="form-actions">
+        <button className="primary-button" type="submit">Add task</button>
+      </div>
     </form>
   )
 }

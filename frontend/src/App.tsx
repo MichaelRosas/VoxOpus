@@ -79,20 +79,29 @@ function App() {
   }
 
   return (
-    <main>
-      <h1>VoxOpus</h1>
+    <main className="workspace">
+      <header className="workspace-header">
+        <h1>VoxOpus</h1>
+        <p>Tasks and reminders, in one place.</p>
+      </header>
 
-      <CreateTaskForm onCreate={addTask} />
+      <div className="workspace-body">
+        <section aria-labelledby="new-task-heading">
+          <h2 id="new-task-heading">Add a task</h2>
 
-      <section>
-        <h2>Tasks</h2>
-        <TaskList
-          tasks={tasks}
-          onToggle={toggleTask}
-          onUpdate={updateTask}
-          onDelete={deleteTask}
-        />
-      </section>
+          <CreateTaskForm onCreate={addTask} />
+        </section>
+
+        <section aria-labelledby="tasks-heading">
+          <h2 id="tasks-heading">Your tasks</h2>
+          <TaskList
+            tasks={tasks}
+            onToggle={toggleTask}
+            onUpdate={updateTask}
+            onDelete={deleteTask}
+          />
+        </section>
+      </div>
     </main>
   )
 }
