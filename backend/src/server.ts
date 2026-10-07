@@ -1,8 +1,8 @@
 import "dotenv/config";
 import express from "express";
-import { openai } from "./openai.js";
 import { zodTextFormat } from "openai/helpers/zod";
 import { CommandResultSchema } from "shared";
+import { openai } from "./openai.js";
 
 const app = express();
 const port = 3001;
@@ -23,7 +23,27 @@ app.post("/api/commands", async (request, response) => {
     return;
   }
 
+  const timeZone: unknown = request.body?.timeZone;
+
+  if (typeof timeZone !== "string" || !timeZone.trim()) {
+    response.status(400).json({
+      error: "A timezone is required",
+    });
+    return;
+  }
+
   try {
+    new Intl.DateTimeFormat("en-US", { timeZone }).format();
+  } catch {
+    response.status(400).json({
+      error: "Invalid timezone",
+    });
+    return;
+  }
+
+  try {
+    const currentTime = new Date().toISOString();
+
     const result = await openai.responses.parse({
       model: "gpt-6-luna",
       instructions: [
@@ -35,11 +55,17 @@ app.post("/api/commands", async (request, response) => {
         "and put your question in clarification.",
         "Otherwise, clarification must be null.",
         "For update or delete requests, explain the limitation in clarification.",
-        "For relative dates, ask for clarification because current time",
-        "and the user's timezone are not provided yet.",
+        "Resolve relative dates using the supplied current time and timezone.",
+        "Return timestamps in ISO 8601 format with Z or an explicit UTC offset.",
+        "If a requested time is ambiguous, ask for clarification.",
+        "Do not add a reminder simply because a due date was requested.",
         "Never invent missing information.",
       ].join(" "),
-      input: command.trim(),
+      input: JSON.stringify({
+        command: command.trim(),
+        currentTime,
+        timeZone,
+      }),
       text: {
         format: zodTextFormat(CommandResultSchema, "command_result"),
       },
