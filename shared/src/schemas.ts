@@ -11,3 +11,17 @@ export const TaskSchema = z.object({
 export const TaskListSchema = z.array(TaskSchema);
 
 export type Task = z.infer<typeof TaskSchema>;
+
+export const CreateTaskOperationSchema = z.object({
+  type: z.literal("create"),
+  title: TaskSchema.shape.title,
+  dueAt: TaskSchema.shape.dueAt,
+  reminderAt: TaskSchema.shape.reminderAt,
+});
+
+export const CommandResultSchema = z.object({
+  operations: z.array(CreateTaskOperationSchema),
+  clarification: z.string().nullable(),
+});
+
+export type CommandResult = z.infer<typeof CommandResultSchema>;
