@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import type { Task } from 'shared'
 import { CreateTaskForm } from './components/CreateTaskForm'
 import { TaskList } from './components/TaskList'
+import { CommandForm } from './components/CommandForm'
 import { loadTasks, saveTasks } from './storage'
 import './App.css'
 
@@ -44,6 +45,10 @@ function App() {
     setTasks((currentTasks) => [...currentTasks, task])
   }
 
+  function addTasks(newTasks: Task[]) {
+    setTasks((currentTasks) => [...currentTasks, ...newTasks])
+  }
+
   function toggleTask(taskId: string) {
     setTasks((currentTasks) =>
       currentTasks.map((task) =>
@@ -84,6 +89,8 @@ function App() {
         <h1>VoxOpus</h1>
         <p>Tasks and reminders, in one place.</p>
       </header>
+
+      <CommandForm onConfirm={addTasks} />
 
       <div className="workspace-body">
         <section aria-labelledby="new-task-heading">
