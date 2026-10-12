@@ -1,6 +1,8 @@
 import { useState, type SubmitEvent } from 'react'
+import { Mic, Square } from 'lucide-react'
 import type { CommandResult, Task } from 'shared'
 import { interpretCommand } from '../api'
+import { useSpeechRecognition } from '../hooks/useSpeechRecognition'
 
 interface CommandFormProps {
   tasks: Task[]
@@ -12,10 +14,21 @@ export function CommandForm({ tasks, onConfirm }: CommandFormProps) {
   const [result, setResult] = useState<CommandResult | null>(null)
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const speech = useSpeechRecognition()
+
+  function startDictation() {
+    if (isLoading || speech.isActive) return
+    const originalCommand = command.trimEnd()
+    setResult(null)
+    setError(null)
+    speech.start((transcript) => {
+      setCommand([originalCommand, transcript].filter(Boolean).join(' '))
+    })
+  }
 
   async function handleSubmit(event: SubmitEvent<HTMLFormElement>) {
     event.preventDefault()
-    if (!command.trim() || isLoading) return
+    if (!command.trim() || isLoading || speech.isActive) return
 
     setIsLoading(true)
     setError(null)
@@ -49,24 +62,52 @@ export function CommandForm({ tasks, onConfirm }: CommandFormProps) {
   }
 
   return (
-    <section aria-labelledby="command-heading">
+    <section className="command-section" aria-labelledby="command-heading">
       <h2 id="command-heading">Task command</h2>
-      <form onSubmit={handleSubmit}>
+      <form className="command-form" onSubmit={handleSubmit}>
         <label htmlFor="command-input">Command</label>
         <textarea
           id="command-input"
           value={command}
-          disabled={isLoading}
+          disabled={isLoading || speech.isActive}
+          rows={3}
           onChange={(event) => {
             setCommand(event.target.value)
             setResult(null)
             setError(null)
           }}
         />
-        <button type="submit" disabled={isLoading || !command.trim()}>
+        <div className="form-actions">
+        <button type="submit" disabled={isLoading || speech.isActive || !command.trim()}>
           {isLoading ? 'Processing…' : 'Interpret'}
         </button>
+        {speech.isSupported && (
+          <button
+            type="button"
+            className="dictation-button"
+            onClick={speech.isActive ? speech.stop : startDictation}
+            disabled={isLoading || speech.status === 'starting' || speech.status === 'stopping'}
+            title={speech.isActive ? 'Stop dictation' : 'Start dictation'}
+            aria-label={speech.isActive ? 'Stop dictation' : 'Start dictation'}
+          >
+            {speech.isActive ? <Square size={18} aria-hidden="true" /> : <Mic size={18} aria-hidden="true" />}
+            {speech.isActive ? 'Stop dictation' : 'Start dictation'}
+          </button>
+        )}
+        </div>
       </form>
+      <p role="status">
+        {!speech.isSupported
+          ? 'Voice dictation is unavailable in this browser.'
+          : speech.status === 'starting'
+            ? 'Starting microphone...'
+            : speech.status === 'listening'
+              ? 'Listening...'
+              : speech.status === 'stopping'
+                ? 'Finishing dictation...'
+                : ''}
+      </p>
+      {speech.error && <p role="alert">{speech.error}</p>}
       {error && <p role="alert">{error}</p>}
       {result?.clarification && <p>{result.clarification}</p>}
       {result && result.clarification === null && (

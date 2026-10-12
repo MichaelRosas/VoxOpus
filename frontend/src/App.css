@@ -18,6 +18,11 @@ button:hover { background: #e7eee9; }
 .primary-button { color: #fff; background: var(--primary); }
 .primary-button:hover { background: #193e30; }
 .form-actions { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 12px; }
+.command-section { margin-top: 28px; min-width: 0; }
+.command-form { display: flex; flex-direction: column; gap: 8px; }
+.command-form textarea { width: 100%; box-sizing: border-box; min-width: 0; padding: 10px 12px; border: 1px solid #82978b; border-radius: 6px; color: var(--text); background: var(--surface); font: inherit; resize: vertical; }
+.dictation-button { display: inline-flex; align-items: center; justify-content: center; gap: 8px; }
+.command-section button:disabled { opacity: 0.6; cursor: not-allowed; }
 /* Divided rows keep tasks together without nesting cards or hiding dates. */
 .task-list { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--line); }
 .task-row { padding: 24px 0; border-bottom: 1px solid var(--line); }
