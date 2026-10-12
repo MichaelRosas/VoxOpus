@@ -19,8 +19,46 @@ export const CreateTaskOperationSchema = z.object({
   reminderAt: TaskSchema.shape.reminderAt,
 });
 
+const TitleChangeSchema = z.discriminatedUnion("action", [
+  z.object({ action: z.literal("keep") }),
+  z.object({
+    action: z.literal("set"),
+    value: TaskSchema.shape.title,
+  }),
+]);
+
+const CompletedChangeSchema = z.discriminatedUnion("action", [
+  z.object({ action: z.literal("keep") }),
+  z.object({
+    action: z.literal("set"),
+    value: TaskSchema.shape.completed,
+  }),
+]);
+
+const DateChangeSchema = z.discriminatedUnion("action", [
+  z.object({ action: z.literal("keep") }),
+  z.object({
+    action: z.literal("set"),
+    value: TaskSchema.shape.dueAt,
+  }),
+]);
+
+export const UpdateTaskOperationSchema = z.object({
+  type: z.literal("update"),
+  taskId: TaskSchema.shape.id,
+  title: TitleChangeSchema,
+  completed: CompletedChangeSchema,
+  dueAt: DateChangeSchema,
+  reminderAt: DateChangeSchema,
+});
+
+export const TaskOperationSchema = z.discriminatedUnion("type", [
+  CreateTaskOperationSchema,
+  UpdateTaskOperationSchema,
+]);
+
 export const CommandResultSchema = z.object({
-  operations: z.array(CreateTaskOperationSchema),
+  operations: z.array(TaskOperationSchema),
   clarification: z.string().nullable(),
 });
 

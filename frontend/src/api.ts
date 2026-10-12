@@ -1,7 +1,12 @@
-import { CommandResultSchema, type CommandResult } from 'shared'
+import {
+  CommandResultSchema,
+  type CommandResult,
+  type Task,
+} from 'shared'
 
 export async function interpretCommand(
   command: string,
+  tasks: Task[],
 ): Promise<CommandResult> {
   const response = await fetch('/api/commands', {
     method: 'POST',
@@ -10,6 +15,7 @@ export async function interpretCommand(
     },
     body: JSON.stringify({
       command,
+      tasks,
       timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
     }),
   })

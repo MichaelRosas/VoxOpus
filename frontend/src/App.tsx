@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
-import type { Task } from 'shared'
+import type { CommandResult, Task } from 'shared'
+import { applyTaskOperations } from './taskOperations'
 import { CreateTaskForm } from './components/CreateTaskForm'
 import { TaskList } from './components/TaskList'
 import { CommandForm } from './components/CommandForm'
@@ -45,8 +46,18 @@ function App() {
     setTasks((currentTasks) => [...currentTasks, task])
   }
 
-  function addTasks(newTasks: Task[]) {
-    setTasks((currentTasks) => [...currentTasks, ...newTasks])
+  function confirmOperations(operations: CommandResult['operations']) {
+    const updatedTasks = applyTaskOperations(tasks, operations)
+
+    for (const task of updatedTasks) {
+      const originalTask = tasks.find((existing) => existing.id === task.id)
+
+      if (originalTask && originalTask.reminderAt !== task.reminderAt) {
+        triggeredReminderIds.current.delete(task.id)
+      }
+    }
+
+    setTasks(updatedTasks)
   }
 
   function toggleTask(taskId: string) {
@@ -90,7 +101,7 @@ function App() {
         <p>Tasks and reminders, in one place.</p>
       </header>
 
-      <CommandForm onConfirm={addTasks} />
+      <CommandForm tasks={tasks} onConfirm={confirmOperations} />
 
       <div className="workspace-body">
         <section aria-labelledby="new-task-heading">

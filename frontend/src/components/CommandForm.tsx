@@ -3,10 +3,11 @@ import type { CommandResult, Task } from 'shared'
 import { interpretCommand } from '../api'
 
 interface CommandFormProps {
-  onConfirm: (tasks: Task[]) => void
+  tasks: Task[]
+  onConfirm: (operations: CommandResult['operations']) => void
 }
 
-export function CommandForm({ onConfirm }: CommandFormProps) {
+export function CommandForm({ tasks, onConfirm }: CommandFormProps) {
   const [command, setCommand] = useState('')
   const [result, setResult] = useState<CommandResult | null>(null)
   const [isLoading, setIsLoading] = useState(false)
@@ -21,7 +22,7 @@ export function CommandForm({ onConfirm }: CommandFormProps) {
     setResult(null)
 
     try {
-      setResult(await interpretCommand(command.trim()))
+      setResult(await interpretCommand(command.trim(), tasks))
     } catch (error) {
       setError(
         error instanceof Error ? error.message : 'Command request failed',
@@ -35,17 +36,16 @@ export function CommandForm({ onConfirm }: CommandFormProps) {
     if (!result || result.clarification !== null) return
     if (result.operations.length === 0) return
 
-    const newTasks: Task[] = result.operations.map((operation) => ({
-      id: crypto.randomUUID(),
-      title: operation.title,
-      completed: false,
-      dueAt: operation.dueAt,
-      reminderAt: operation.reminderAt,
-    }))
-
-    onConfirm(newTasks)
-    setResult(null)
-    setCommand('')
+    try {
+      onConfirm(result.operations)
+      setResult(null)
+      setCommand('')
+      setError(null)
+    } catch (error) {
+      setError(
+        error instanceof Error ? error.message : 'Could not apply changes',
+      )
+    }
   }
 
   return (
@@ -72,21 +72,61 @@ export function CommandForm({ onConfirm }: CommandFormProps) {
       {result && result.clarification === null && (
         <div>
           <ul>
-            {result.operations.map((operation, index) => (
-              <li key={index}>
-                <strong>{operation.title}</strong>
-                {operation.dueAt && (
-                  <p>Due: {new Date(operation.dueAt).toLocaleString()}</p>
-                )}
-                {operation.reminderAt && (
-                  <p>
-                    Reminder: {new Date(operation.reminderAt).toLocaleString()}
-                  </p>
-                )}
-              </li>
-            ))}
+            {result.operations.map((operation, index) => {
+              if (operation.type === 'create') {
+                return (
+                  <li key={index}>
+                    <strong>Create: {operation.title}</strong>
+                    {operation.dueAt && (
+                      <p>Due: {new Date(operation.dueAt).toLocaleString()}</p>
+                    )}
+                    {operation.reminderAt && (
+                      <p>
+                        Reminder: {new Date(operation.reminderAt).toLocaleString()}
+                      </p>
+                    )}
+                  </li>
+                )
+              }
+
+              const task = tasks.find((task) => task.id === operation.taskId)
+
+              return (
+                <li key={index}>
+                  <strong>Update: {task?.title ?? 'Task no longer available'}</strong>
+
+                  {operation.title.action === 'set' && (
+                    <p>Title: {operation.title.value}</p>
+                  )}
+
+                  {operation.completed.action === 'set' && (
+                    <p>
+                      Status: {operation.completed.value ? 'Complete' : 'Incomplete'}
+                    </p>
+                  )}
+
+                  {operation.dueAt.action === 'set' && (
+                    <p>
+                      Due:{' '}
+                      {operation.dueAt.value === null
+                        ? 'Remove due date'
+                        : new Date(operation.dueAt.value).toLocaleString()}
+                    </p>
+                  )}
+
+                  {operation.reminderAt.action === 'set' && (
+                    <p>
+                      Reminder:{' '}
+                      {operation.reminderAt.value === null
+                        ? 'Remove reminder'
+                        : new Date(operation.reminderAt.value).toLocaleString()}
+                    </p>
+                  )}
+                </li>
+              )
+            })}
           </ul>
-          {result.operations.length === 0 && <p>No tasks proposed.</p>}
+          {result.operations.length === 0 && <p>No changes proposed.</p>}
           <button
             type="button"
             onClick={confirmTasks}
