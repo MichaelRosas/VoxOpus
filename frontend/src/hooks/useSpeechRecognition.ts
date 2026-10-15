@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { createEarcons } from '../earcons'
 
 interface SpeechResult {
   isFinal: boolean
@@ -14,6 +15,8 @@ interface SpeechRecognizer {
   lang: string
   continuous: boolean
   interimResults: boolean
+  onaudiostart: (() => void) | null
+  onaudioend: (() => void) | null
   onstart: (() => void) | null
   onend: (() => void) | null
   onresult: ((event: SpeechResultEvent) => void) | null
@@ -54,15 +57,28 @@ function errorMessage(code: string) {
 }
 
 export function useSpeechRecognition() {
+  const earconsRef = useRef<ReturnType<typeof createEarcons> | null>(null)
   const recognitionRef = useRef<SpeechRecognizer | null>(null)
   const [status, setStatus] = useState<'idle' | 'starting' | 'listening' | 'stopping'>('idle')
   const [error, setError] = useState<string | null>(null)
   const isSupported = Boolean(getSpeechConstructor())
 
   useEffect(() => {
+    if (isSupported && typeof AudioContext !== 'undefined') {
+      try {
+        earconsRef.current = createEarcons()
+      } catch {
+        // Restricted audio environments must not prevent the existing speech workflow.
+        earconsRef.current = null
+      }
+    }
     return () => {
+      earconsRef.current?.dispose()
+      earconsRef.current = null
       const recognition = recognitionRef.current
       if (!recognition) return
+      recognition.onaudiostart = null
+      recognition.onaudioend = null
       recognition.onstart = null
       recognition.onend = null
       recognition.onresult = null
@@ -70,7 +86,7 @@ export function useSpeechRecognition() {
       recognition.abort()
       recognitionRef.current = null
     }
-  }, [])
+  }, [isSupported])
 
   function start(onTranscript: (text: string) => void) {
     if (recognitionRef.current) return
@@ -82,6 +98,21 @@ export function useSpeechRecognition() {
     recognition.continuous = true
     recognition.interimResults = true
     let finalTranscript = ''
+    let isRecording = false
+    earconsRef.current?.unlock()
+
+    // Cue actual microphone capture, not button clicks or failed permission requests.
+    recognition.onaudiostart = () => {
+      if (isRecording) return
+      isRecording = true
+      earconsRef.current?.play('start')
+    }
+    const finishRecording = () => {
+      if (!isRecording) return
+      isRecording = false
+      earconsRef.current?.play('stop')
+    }
+    recognition.onaudioend = finishRecording
 
     recognition.onstart = () => setStatus('listening')
     recognition.onresult = (event) => {
@@ -104,6 +135,8 @@ export function useSpeechRecognition() {
       if (event.error !== 'aborted') setError(errorMessage(event.error))
     }
     recognition.onend = () => {
+      // Some engines end recognition without a separate audioend event.
+      finishRecording()
       onTranscript(finalTranscript)
       recognitionRef.current = null
       setStatus('idle')

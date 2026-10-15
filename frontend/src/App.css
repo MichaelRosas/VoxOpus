@@ -18,11 +18,26 @@ button:hover { background: #e7eee9; }
 .primary-button { color: #fff; background: var(--primary); }
 .primary-button:hover { background: #193e30; }
 .form-actions { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 12px; }
-.command-section { margin-top: 28px; min-width: 0; }
+/* Command input is a distinct work area; its preview stays in the same flow. */
+.command-section { margin-top: 32px; padding-bottom: 32px; border-bottom: 1px solid var(--line); min-width: 0; }
 .command-form { display: flex; flex-direction: column; gap: 8px; }
+.command-form label { font-weight: 600; }
 .command-form textarea { width: 100%; box-sizing: border-box; min-width: 0; padding: 10px 12px; border: 1px solid #82978b; border-radius: 6px; color: var(--text); background: var(--surface); font: inherit; resize: vertical; }
 .dictation-button { display: inline-flex; align-items: center; justify-content: center; gap: 8px; }
-.command-section button:disabled { opacity: 0.6; cursor: not-allowed; }
+/* Disabled controls stay readable, while a neutral fill distinguishes availability. */
+.command-section button:disabled { color: var(--muted); background: #e7eee9; border-color: #82978b; cursor: not-allowed; }
+.command-form textarea:disabled { color: var(--text); opacity: 1; background: #edf2ef; }
+.command-form textarea { caret-color: var(--primary); }
+/* A stable status line avoids shifting the form as recording state changes. */
+.command-status { min-height: 24px; margin-top: 16px; color: var(--muted); }
+.command-error { margin-top: 12px; color: var(--accent); overflow-wrap: anywhere; }
+.command-clarification { margin-top: 24px; font-weight: 600; }
+/* Dividers group proposed changes without nesting cards; actions stay together. */
+.command-preview { margin-top: 28px; }
+.command-preview h3 { font-size: 18px; margin: 0 0 12px; }
+.command-preview ul { padding: 0; margin: 0; list-style: none; }
+.command-preview li { padding: 16px 0; border-top: 1px solid var(--line); overflow-wrap: anywhere; }
+.command-preview li p { margin-top: 4px; color: var(--muted); }
 /* Divided rows keep tasks together without nesting cards or hiding dates. */
 .task-list { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--line); }
 .task-row { padding: 24px 0; border-bottom: 1px solid var(--line); }

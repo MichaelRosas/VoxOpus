@@ -65,12 +65,13 @@ export function CommandForm({ tasks, onConfirm }: CommandFormProps) {
     <section className="command-section" aria-labelledby="command-heading">
       <h2 id="command-heading">Task command</h2>
       <form className="command-form" onSubmit={handleSubmit}>
-        <label htmlFor="command-input">Command</label>
+        <label htmlFor="command-input">Type a command or use dictation</label>
         <textarea
           id="command-input"
           value={command}
           disabled={isLoading || speech.isActive}
           rows={3}
+          aria-describedby="dictation-status"
           onChange={(event) => {
             setCommand(event.target.value)
             setResult(null)
@@ -78,25 +79,25 @@ export function CommandForm({ tasks, onConfirm }: CommandFormProps) {
           }}
         />
         <div className="form-actions">
-        <button type="submit" disabled={isLoading || speech.isActive || !command.trim()}>
-          {isLoading ? 'Processing…' : 'Interpret'}
-        </button>
-        {speech.isSupported && (
-          <button
-            type="button"
-            className="dictation-button"
-            onClick={speech.isActive ? speech.stop : startDictation}
-            disabled={isLoading || speech.status === 'starting' || speech.status === 'stopping'}
-            title={speech.isActive ? 'Stop dictation' : 'Start dictation'}
-            aria-label={speech.isActive ? 'Stop dictation' : 'Start dictation'}
-          >
-            {speech.isActive ? <Square size={18} aria-hidden="true" /> : <Mic size={18} aria-hidden="true" />}
-            {speech.isActive ? 'Stop dictation' : 'Start dictation'}
+          <button className="primary-button" type="submit" disabled={isLoading || speech.isActive || !command.trim()}>
+            {isLoading ? 'Processing…' : 'Interpret'}
           </button>
-        )}
+          {speech.isSupported && (
+            <button
+              type="button"
+              className="dictation-button"
+              onClick={speech.isActive ? speech.stop : startDictation}
+              disabled={isLoading || speech.status === 'starting' || speech.status === 'stopping'}
+              title={speech.isActive ? 'Stop dictation' : 'Start dictation'}
+              aria-label={speech.isActive ? 'Stop dictation' : 'Start dictation'}
+            >
+              {speech.isActive ? <Square size={18} aria-hidden="true" /> : <Mic size={18} aria-hidden="true" />}
+              {speech.isActive ? 'Stop dictation' : 'Start dictation'}
+            </button>
+          )}
         </div>
       </form>
-      <p role="status">
+      <p className="command-status" id="dictation-status" role="status">
         {!speech.isSupported
           ? 'Voice dictation is unavailable in this browser.'
           : speech.status === 'starting'
@@ -105,13 +106,14 @@ export function CommandForm({ tasks, onConfirm }: CommandFormProps) {
               ? 'Listening...'
               : speech.status === 'stopping'
                 ? 'Finishing dictation...'
-                : ''}
+                : 'Ready. Dictate or type, then interpret your command.'}
       </p>
-      {speech.error && <p role="alert">{speech.error}</p>}
-      {error && <p role="alert">{error}</p>}
-      {result?.clarification && <p>{result.clarification}</p>}
+      {speech.error && <p className="command-error" role="alert">{speech.error}</p>}
+      {error && <p className="command-error" role="alert">{error}</p>}
+      {result?.clarification && <p className="command-clarification">{result.clarification}</p>}
       {result && result.clarification === null && (
-        <div>
+        <div className="command-preview">
+          <h3>Review changes</h3>
           <ul>
             {result.operations.map((operation, index) => {
               if (operation.type === 'create') {
@@ -168,16 +170,19 @@ export function CommandForm({ tasks, onConfirm }: CommandFormProps) {
             })}
           </ul>
           {result.operations.length === 0 && <p>No changes proposed.</p>}
-          <button
-            type="button"
-            onClick={confirmTasks}
-            disabled={result.operations.length === 0}
-          >
-            Confirm
-          </button>
-          <button type="button" onClick={() => setResult(null)}>
-            Cancel
-          </button>
+          <div className="form-actions">
+            <button
+              className="primary-button"
+              type="button"
+              onClick={confirmTasks}
+              disabled={result.operations.length === 0}
+            >
+              Confirm changes
+            </button>
+            <button type="button" onClick={() => setResult(null)}>
+              Cancel
+            </button>
+          </div>
         </div>
       )}
     </section>

@@ -11,7 +11,7 @@ Students managing tasks and reminders. The user requested a calm, focused, appro
 VoxOpus is a CS423 speech to-do and reminder project. The current prototype supports manual task creation, completion, editing, deletion, due dates, reminders, and local storage.
 
 ## Capabilities and Constraints
-This pass changes presentation only and adds no features. Speech recognition and LLM commands appear in the project outline but are not implemented in the current UI. Do not represent them as available.
+The current main branch supports speech dictation, typed commands, LLM interpretation, and proposed-change confirmation alongside manual task controls. This pass refines presentation and adds only the explicitly requested recording-start and recording-stop earcons. Preserve all other behavior.
 
 ## Accessibility & Inclusion
 Body and control text at least 16px; text contrast at least 4.5:1; visible keyboard focus and readable mobile layouts.
