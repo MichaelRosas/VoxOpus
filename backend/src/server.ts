@@ -18,7 +18,7 @@ app.post("/api/commands", async (request, response) => {
 
   if (typeof command !== "string" || !command.trim()) {
     response.status(400).json({
-      error: "A non-empty command is required",
+      error: "An empty command given",
     });
     return;
   }
@@ -56,7 +56,7 @@ app.post("/api/commands", async (request, response) => {
     const result = await openai.responses.parse({
       model: "gpt-6-luna",
       instructions: [
-        "Interpret commands for a task and reminder application.",
+        "Interpret commands for a task creation and reminder application.",
         "Support creating tasks and updating existing tasks.",
         "Return proposed operations; do not claim to execute them.",
         "A command may request multiple creations and updates.",
@@ -91,7 +91,7 @@ app.post("/api/commands", async (request, response) => {
 
     if (result.status !== "completed" || !result.output_parsed) {
       response.status(502).json({
-        error: "The model did not return a complete command result",
+        error: "The model did not return a complete result",
       });
       return;
     }
