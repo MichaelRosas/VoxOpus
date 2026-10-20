@@ -1,46 +1,82 @@
-import { useState, type SubmitEvent } from 'react'
+import { useEffect, useImperativeHandle, useRef, useState, type Ref, type SubmitEvent } from 'react'
 import { Mic, Square } from 'lucide-react'
 import type { CommandResult, Task } from 'shared'
 import { interpretCommand } from '../api'
 import { useSpeechRecognition } from '../hooks/useSpeechRecognition'
 
-interface CommandFormProps {
-  tasks: Task[]
-  onConfirm: (operations: CommandResult['operations']) => void
+export interface CommandFormHandle {
+  startEditing: (task: Task) => void
 }
 
-export function CommandForm({ tasks, onConfirm }: CommandFormProps) {
+interface CommandFormProps {
+  ref?: Ref<CommandFormHandle>
+  tasks: Task[]
+  onConfirm: (operations: CommandResult['operations']) => void
+  onBusyChange: (isBusy: boolean) => void
+}
+
+export function CommandForm({ ref, tasks, onConfirm, onBusyChange }: CommandFormProps) {
   const [command, setCommand] = useState('')
   const [result, setResult] = useState<CommandResult | null>(null)
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const speech = useSpeechRecognition()
+  const sectionRef = useRef<HTMLElement | null>(null)
+  const inputRef = useRef<HTMLTextAreaElement | null>(null)
+  const requestInFlightRef = useRef(false)
 
-  function startDictation() {
+  useEffect(() => {
+    onBusyChange(isLoading || speech.isActive)
+  }, [isLoading, speech.isActive, onBusyChange])
+
+  useImperativeHandle(ref, () => ({
+    startEditing(task) {
+      if (isLoading || speech.isActive) return
+      startDictation(`Update the task ${JSON.stringify(task.title)}:`)
+      sectionRef.current?.scrollIntoView({ block: 'nearest' })
+      inputRef.current?.focus()
+    },
+  }))
+
+  function startDictation(initialCommand = command) {
     if (isLoading || speech.isActive) return
-    const originalCommand = command.trimEnd()
+    const originalCommand = initialCommand.trimEnd()
+    setCommand(originalCommand)
     setResult(null)
     setError(null)
-    speech.start((transcript) => {
-      setCommand([originalCommand, transcript].filter(Boolean).join(' '))
-    })
+    speech.start(
+      (transcript) => {
+        setCommand([originalCommand, transcript].filter(Boolean).join(' '))
+      },
+      (finalTranscript) => {
+        const finalCommand = [originalCommand, finalTranscript].filter(Boolean).join(' ')
+        void submitCommand(finalCommand)
+      },
+    )
   }
 
   async function handleSubmit(event: SubmitEvent<HTMLFormElement>) {
     event.preventDefault()
     if (!command.trim() || isLoading || speech.isActive) return
+    await submitCommand(command)
+  }
 
+  async function submitCommand(text: string) {
+    if (!text.trim() || requestInFlightRef.current) return
+
+    requestInFlightRef.current = true
     setIsLoading(true)
     setError(null)
     setResult(null)
 
     try {
-      setResult(await interpretCommand(command.trim(), tasks))
+      setResult(await interpretCommand(text.trim(), tasks))
     } catch (error) {
       setError(
         error instanceof Error ? error.message : 'Command request failed',
       )
     } finally {
+      requestInFlightRef.current = false
       setIsLoading(false)
     }
   }
@@ -62,11 +98,12 @@ export function CommandForm({ tasks, onConfirm }: CommandFormProps) {
   }
 
   return (
-    <section className="command-section" aria-labelledby="command-heading">
+    <section ref={sectionRef} className="command-section" aria-labelledby="command-heading">
       <h2 id="command-heading">Task command</h2>
       <form className="command-form" onSubmit={handleSubmit}>
         <label htmlFor="command-input">Type a command or use dictation</label>
         <textarea
+          ref={inputRef}
           id="command-input"
           value={command}
           disabled={isLoading || speech.isActive}
@@ -79,14 +116,11 @@ export function CommandForm({ tasks, onConfirm }: CommandFormProps) {
           }}
         />
         <div className="form-actions">
-          <button className="primary-button" type="submit" disabled={isLoading || speech.isActive || !command.trim()}>
-            {isLoading ? 'Processing…' : 'Interpret'}
-          </button>
           {speech.isSupported && (
             <button
               type="button"
               className="dictation-button"
-              onClick={speech.isActive ? speech.stop : startDictation}
+              onClick={speech.isActive ? speech.stop : () => startDictation()}
               disabled={isLoading || speech.status === 'starting' || speech.status === 'stopping'}
               title={speech.isActive ? 'Stop dictation' : 'Start dictation'}
               aria-label={speech.isActive ? 'Stop dictation' : 'Start dictation'}
@@ -95,10 +129,15 @@ export function CommandForm({ tasks, onConfirm }: CommandFormProps) {
               {speech.isActive ? 'Stop dictation' : 'Start dictation'}
             </button>
           )}
+          <button className="primary-button" type="submit" disabled={isLoading || speech.isActive || !command.trim()}>
+            {isLoading ? 'Processing…' : 'Interpret'}
+          </button>
         </div>
       </form>
       <p className="command-status" id="dictation-status" role="status">
-        {!speech.isSupported
+        {isLoading
+          ? 'Interpreting command...'
+          : !speech.isSupported
           ? 'Voice dictation is unavailable in this browser.'
           : speech.status === 'starting'
             ? 'Starting microphone...'
@@ -106,7 +145,7 @@ export function CommandForm({ tasks, onConfirm }: CommandFormProps) {
               ? 'Listening...'
               : speech.status === 'stopping'
                 ? 'Finishing dictation...'
-                : 'Ready. Dictate or type, then interpret your command.'}
+                : 'Ready for a command.'}
       </p>
       {speech.error && <p className="command-error" role="alert">{speech.error}</p>}
       {error && <p className="command-error" role="alert">{error}</p>}

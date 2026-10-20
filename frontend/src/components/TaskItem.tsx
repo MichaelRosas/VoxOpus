@@ -1,39 +1,21 @@
-import { useState } from 'react'
+import { Mic } from 'lucide-react'
 import type { Task } from 'shared'
-import { EditTaskForm } from './EditTaskForm'
 
 interface TaskItemProps {
   task: Task
   onToggle: (taskId: string) => void
-  onUpdate: (task: Task) => void
+  onEdit: (task: Task) => void
+  editDisabled: boolean
   onDelete: (taskId: string) => void
 }
 
 export function TaskItem({
   task,
   onToggle,
-  onUpdate,
+  onEdit,
+  editDisabled,
   onDelete,
 }: TaskItemProps) {
-  const [isEditing, setIsEditing] = useState(false)
-
-  function saveTask(updatedTask: Task) {
-    onUpdate(updatedTask)
-    setIsEditing(false)
-  }
-
-  if (isEditing) {
-    return (
-      <li className="task-row">
-        <EditTaskForm
-          task={task}
-          onSave={saveTask}
-          onCancel={() => setIsEditing(false)}
-        />
-      </li>
-    )
-  }
-
   return (
     <li className="task-row">
       <label className="task-label">
@@ -57,7 +39,14 @@ export function TaskItem({
       </div>
 
       <div className="task-actions">
-        <button type="button" onClick={() => setIsEditing(true)}>
+        <button
+          type="button"
+          className="dictation-button"
+          onClick={() => onEdit(task)}
+          disabled={editDisabled}
+          title={editDisabled ? 'Wait for dictation or interpretation to finish' : 'Dictate changes to this task'}
+        >
+          <Mic size={18} aria-hidden="true" />
           Edit
         </button>
 

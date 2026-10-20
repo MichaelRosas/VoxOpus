@@ -59,6 +59,7 @@ function errorMessage(code: string) {
 export function useSpeechRecognition() {
   const earconsRef = useRef<ReturnType<typeof createEarcons> | null>(null)
   const recognitionRef = useRef<SpeechRecognizer | null>(null)
+  const stopRequestedRef = useRef(false)
   const [status, setStatus] = useState<'idle' | 'starting' | 'listening' | 'stopping'>('idle')
   const [error, setError] = useState<string | null>(null)
   const isSupported = Boolean(getSpeechConstructor())
@@ -88,7 +89,10 @@ export function useSpeechRecognition() {
     }
   }, [isSupported])
 
-  function start(onTranscript: (text: string) => void) {
+  function start(
+    onTranscript: (text: string) => void,
+    onStopped?: (finalTranscript: string) => void,
+  ) {
     if (recognitionRef.current) return
     const Constructor = getSpeechConstructor()
     if (!Constructor) return
@@ -99,6 +103,8 @@ export function useSpeechRecognition() {
     recognition.interimResults = true
     let finalTranscript = ''
     let isRecording = false
+    let hasError = false
+    stopRequestedRef.current = false
     earconsRef.current?.unlock()
 
     // Cue actual microphone capture, not button clicks or failed permission requests.
@@ -132,6 +138,7 @@ export function useSpeechRecognition() {
       onTranscript([...finalParts, ...interimParts].join(' '))
     }
     recognition.onerror = (event) => {
+      hasError = true
       if (event.error !== 'aborted') setError(errorMessage(event.error))
     }
     recognition.onend = () => {
@@ -140,6 +147,12 @@ export function useSpeechRecognition() {
       onTranscript(finalTranscript)
       recognitionRef.current = null
       setStatus('idle')
+      const wasStopped = stopRequestedRef.current
+      stopRequestedRef.current = false
+      if (wasStopped && !hasError) {
+        if (finalTranscript.trim()) onStopped?.(finalTranscript)
+        else setError('No speech was detected. Try again or type your command.')
+      }
     }
 
     recognitionRef.current = recognition
@@ -156,11 +169,14 @@ export function useSpeechRecognition() {
   }
 
   function stop() {
-    if (!recognitionRef.current) return
+    if (!recognitionRef.current || stopRequestedRef.current) return
+    stopRequestedRef.current = true
     setStatus('stopping')
     try {
       recognitionRef.current.stop()
     } catch {
+      stopRequestedRef.current = false
+      setError('Could not finish dictation. Review the transcript before interpreting.')
       recognitionRef.current.abort()
     }
   }

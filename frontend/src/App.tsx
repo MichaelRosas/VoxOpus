@@ -1,15 +1,16 @@
 import { useEffect, useRef, useState } from 'react'
 import type { CommandResult, Task } from 'shared'
 import { applyTaskOperations } from './taskOperations'
-import { CreateTaskForm } from './components/CreateTaskForm'
 import { TaskList } from './components/TaskList'
-import { CommandForm } from './components/CommandForm'
+import { CommandForm, type CommandFormHandle } from './components/CommandForm'
 import { loadTasks, saveTasks } from './storage'
 import './App.css'
 
 function App() {
   const [tasks, setTasks] = useState<Task[]>(loadTasks)
   const triggeredReminderIds = useRef(new Set<string>())
+  const commandFormRef = useRef<CommandFormHandle | null>(null)
+  const [commandBusy, setCommandBusy] = useState(false)
 
   useEffect(() => {
     saveTasks(tasks)
@@ -42,10 +43,6 @@ function App() {
     }
   }, [tasks])
 
-  function addTask(task: Task) {
-    setTasks((currentTasks) => [...currentTasks, task])
-  }
-
   function confirmOperations(operations: CommandResult['operations']) {
     const updatedTasks = applyTaskOperations(tasks, operations)
 
@@ -70,24 +67,6 @@ function App() {
     )
   }
 
-  function updateTask(updatedTask: Task) {
-    const originalTask = tasks.find((task) => task.id === updatedTask.id)
-
-    if (!originalTask) {
-      return
-    }
-
-    if (originalTask.reminderAt !== updatedTask.reminderAt) {
-      triggeredReminderIds.current.delete(updatedTask.id)
-    }
-
-    setTasks((currentTasks) =>
-      currentTasks.map((task) =>
-        task.id === updatedTask.id ? updatedTask : task,
-      ),
-    )
-  }
-
   function deleteTask(taskId: string) {
     setTasks((currentTasks) =>
       currentTasks.filter((task) => task.id !== taskId),
@@ -98,24 +77,30 @@ function App() {
     <main className="workspace">
       <header className="workspace-header">
         <h1>VoxOpus</h1>
-        <p>Tasks and reminders, in one place.</p>
+        <p>Speech powered tasks</p>
       </header>
 
-      <CommandForm tasks={tasks} onConfirm={confirmOperations} />
+      <CommandForm
+        ref={commandFormRef}
+        tasks={tasks}
+        onConfirm={confirmOperations}
+        onBusyChange={setCommandBusy}
+      />
 
       <div className="workspace-body">
-        <section aria-labelledby="new-task-heading">
+        {/* <section aria-labelledby="new-task-heading">
           <h2 id="new-task-heading">Add a task</h2>
 
           <CreateTaskForm onCreate={addTask} />
-        </section>
+        </section> */}
 
         <section aria-labelledby="tasks-heading">
           <h2 id="tasks-heading">Your tasks</h2>
           <TaskList
             tasks={tasks}
             onToggle={toggleTask}
-            onUpdate={updateTask}
+            onEdit={(task) => commandFormRef.current?.startEditing(task)}
+            editDisabled={commandBusy}
             onDelete={deleteTask}
           />
         </section>

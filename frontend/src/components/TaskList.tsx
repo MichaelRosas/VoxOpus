@@ -4,14 +4,16 @@ import { TaskItem } from './TaskItem'
 interface TaskListProps {
   tasks: Task[]
   onToggle: (taskId: string) => void
-  onUpdate: (task: Task) => void
+  onEdit: (task: Task) => void
+  editDisabled: boolean
   onDelete: (taskId: string) => void
 }
 
 export function TaskList({
   tasks,
   onToggle,
-  onUpdate,
+  onEdit,
+  editDisabled,
   onDelete,
 }: TaskListProps) {
   if (tasks.length === 0) {
@@ -25,7 +27,8 @@ export function TaskList({
           key={task.id}
           task={task}
           onToggle={onToggle}
-          onUpdate={onUpdate}
+          onEdit={onEdit}
+          editDisabled={editDisabled}
           onDelete={onDelete}
         />
       ))}
