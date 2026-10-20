@@ -52,9 +52,15 @@ export const UpdateTaskOperationSchema = z.object({
   reminderAt: DateChangeSchema,
 });
 
+export const DeleteTaskOperationSchema = z.object({
+  type: z.literal("delete"),
+  taskId: TaskSchema.shape.id,
+});
+
 export const TaskOperationSchema = z.discriminatedUnion("type", [
   CreateTaskOperationSchema,
   UpdateTaskOperationSchema,
+  DeleteTaskOperationSchema,
 ]);
 
 export const CommandResultSchema = z.object({

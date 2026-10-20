@@ -1,4 +1,3 @@
-/* Shared colors keep the student workspace calm and all text readable. */
 :root {
   font-family: 'Avenir Next', 'Segoe UI', sans-serif;
   color: #24352f;
@@ -16,16 +15,12 @@
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
 }
-/* Border-box sizing lets fields fit their columns at narrow widths. */
 * { box-sizing: border-box; }
 body { margin: 0; min-width: 320px; }
-/* A compact upright serif gives the product name character without a hero. */
 h1 { font-family: 'Palatino Linotype', Palatino, serif; font-size: 32px; line-height: 1.2; font-weight: 700; margin: 0; }
 h2 { font-size: 22px; line-height: 1.3; margin: 0 0 20px; }
 p { margin: 0; }
-/* Controls inherit the 16px body size instead of the smaller browser default. */
 input, button { font: inherit; }
 button { cursor: pointer; }
-/* Keyboard focus is distinct from hover and remains visible on every control. */
 :focus-visible { outline: 3px solid var(--accent); outline-offset: 3px; }
 ::selection { background: #dcebe2; color: var(--text); }

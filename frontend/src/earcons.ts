@@ -1,4 +1,3 @@
-// Decode the supplied earcons ahead of recording. WAV avoids FLAC codec differences.
 export function createEarcons() {
   const context = new AudioContext()
   let disposed = false
@@ -17,7 +16,6 @@ export function createEarcons() {
   }
 
   return {
-    // Called directly from the Start button gesture to satisfy autoplay policy.
     unlock() { void context.resume().catch(() => {}) },
     play(name: 'start' | 'stop') {
       const buffer = buffers.get(name)

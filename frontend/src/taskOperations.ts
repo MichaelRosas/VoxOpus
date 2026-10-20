@@ -27,6 +27,11 @@ export function applyTaskOperations(
       throw new Error('A task in this proposal no longer exists')
     }
 
+    if (operation.type === 'delete') {
+      updatedTasks.splice(taskIndex, 1)
+      continue
+    }
+
     updatedTasks[taskIndex] = {
       ...task,
       title:

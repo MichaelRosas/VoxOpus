@@ -6,7 +6,6 @@ interface TaskListProps {
   onToggle: (taskId: string) => void
   onEdit: (task: Task) => void
   editDisabled: boolean
-  onDelete: (taskId: string) => void
 }
 
 export function TaskList({
@@ -14,7 +13,6 @@ export function TaskList({
   onToggle,
   onEdit,
   editDisabled,
-  onDelete,
 }: TaskListProps) {
   if (tasks.length === 0) {
     return <p className="empty-state">No tasks yet. Add a task to get started.</p>
@@ -29,7 +27,6 @@ export function TaskList({
           onToggle={onToggle}
           onEdit={onEdit}
           editDisabled={editDisabled}
-          onDelete={onDelete}
         />
       ))}
     </ul>

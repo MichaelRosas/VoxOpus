@@ -6,7 +6,6 @@ interface TaskItemProps {
   onToggle: (taskId: string) => void
   onEdit: (task: Task) => void
   editDisabled: boolean
-  onDelete: (taskId: string) => void
 }
 
 export function TaskItem({
@@ -14,7 +13,6 @@ export function TaskItem({
   onToggle,
   onEdit,
   editDisabled,
-  onDelete,
 }: TaskItemProps) {
   return (
     <li className="task-row">
@@ -50,14 +48,6 @@ export function TaskItem({
           Edit
         </button>
 
-        <button
-          type="button"
-          onClick={() => onDelete(task.id)}
-          className="delete-button"
-          aria-label={`Delete ${task.title}`}
-        >
-          Delete
-        </button>
       </div>
     </li>
   )

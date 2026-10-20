@@ -173,6 +173,14 @@ export function CommandForm({ ref, tasks, onConfirm, onBusyChange }: CommandForm
 
               const task = tasks.find((task) => task.id === operation.taskId)
 
+              if (operation.type === 'delete') {
+                return (
+                  <li key={index}>
+                    <strong>Delete: {task?.title ?? 'Task no longer available'}</strong>
+                  </li>
+                )
+              }
+
               return (
                 <li key={index}>
                   <strong>Update: {task?.title ?? 'Task no longer available'}</strong>

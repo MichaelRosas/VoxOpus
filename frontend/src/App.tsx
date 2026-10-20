@@ -46,11 +46,11 @@ function App() {
   function confirmOperations(operations: CommandResult['operations']) {
     const updatedTasks = applyTaskOperations(tasks, operations)
 
-    for (const task of updatedTasks) {
-      const originalTask = tasks.find((existing) => existing.id === task.id)
+    for (const originalTask of tasks) {
+      const updatedTask = updatedTasks.find((task) => task.id === originalTask.id)
 
-      if (originalTask && originalTask.reminderAt !== task.reminderAt) {
-        triggeredReminderIds.current.delete(task.id)
+      if (!updatedTask || originalTask.reminderAt !== updatedTask.reminderAt) {
+        triggeredReminderIds.current.delete(originalTask.id)
       }
     }
 
@@ -64,12 +64,6 @@ function App() {
           ? { ...task, completed: !task.completed }
           : task,
       ),
-    )
-  }
-
-  function deleteTask(taskId: string) {
-    setTasks((currentTasks) =>
-      currentTasks.filter((task) => task.id !== taskId),
     )
   }
 
@@ -88,12 +82,6 @@ function App() {
       />
 
       <div className="workspace-body">
-        {/* <section aria-labelledby="new-task-heading">
-          <h2 id="new-task-heading">Add a task</h2>
-
-          <CreateTaskForm onCreate={addTask} />
-        </section> */}
-
         <section aria-labelledby="tasks-heading">
           <h2 id="tasks-heading">Your tasks</h2>
           <TaskList
@@ -101,7 +89,6 @@ function App() {
             onToggle={toggleTask}
             onEdit={(task) => commandFormRef.current?.startEditing(task)}
             editDisabled={commandBusy}
-            onDelete={deleteTask}
           />
         </section>
       </div>

@@ -57,10 +57,14 @@ app.post("/api/commands", async (request, response) => {
       model: "gpt-6-luna",
       instructions: [
         "Interpret commands for a task creation and reminder application.",
-        "Support creating tasks and updating existing tasks.",
+        "Support creating, updating, and deleting tasks.",
         "Return proposed operations; do not claim to execute them.",
-        "A command may request multiple creations and updates.",
-        "For updates, use only task IDs from the supplied tasks.",
+        "A command may request multiple creations, updates, and deletions.",
+        "For updates and deletions, use only task IDs from the supplied tasks.",
+        "Only delete tasks when the user explicitly requests deletion.",
+        "Deleting a task also removes its due date and reminder.",
+        "Removing only a reminder or due date is an update, not a task deletion.",
+        "Return operations in execution order; do not target a task after deleting it.",
         "Use action keep for every field the user did not request changing.",
         "Use action set with a value for requested changes.",
         "Use action set with null to remove a due date or reminder.",
@@ -69,7 +73,6 @@ app.post("/api/commands", async (request, response) => {
         "If any part needs clarification, return no operations",
         "and put your question in clarification.",
         "Otherwise, clarification must be null.",
-        "Deletion is not supported; explain that limitation in clarification.",
         "Resolve relative dates using the supplied current time and timezone.",
         "Return timestamps in ISO 8601 format with Z or an explicit UTC offset.",
         "If a requested time is ambiguous, ask for clarification.",
@@ -99,10 +102,12 @@ app.post("/api/commands", async (request, response) => {
     const proposal = result.output_parsed;
     const taskIds = new Set(tasksResult.data.map((task) => task.id));
 
-    const hasUnknownTask = proposal.operations.some(
-      (operation) =>
-        operation.type === "update" && !taskIds.has(operation.taskId),
-    );
+    const hasUnknownTask = proposal.operations.some((operation) => {
+      if (operation.type === "create") return false;
+      if (!taskIds.has(operation.taskId)) return true;
+      if (operation.type === "delete") taskIds.delete(operation.taskId);
+      return false;
+    });
 
     if (
       hasUnknownTask ||

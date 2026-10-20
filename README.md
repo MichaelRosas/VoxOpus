@@ -13,10 +13,6 @@ npm install
 Start each workspace in a separate terminal:
 
 ```bash
-npm run dev --workspace shared
-```
-
-```bash
 npm run dev --workspace backend
 ```
 
