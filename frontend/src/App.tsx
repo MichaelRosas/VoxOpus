@@ -1,99 +1,45 @@
-import { useEffect, useRef, useState } from 'react'
-import type { CommandResult, Task } from 'shared'
+import { useEffect, useState } from 'react'
+import { dueReminder, type CommandResult, type Task } from 'shared'
 import { applyTaskOperations } from './taskOperations'
 import { TaskList } from './components/TaskList'
-import { CommandForm, type CommandFormHandle } from './components/CommandForm'
+import { CommandForm } from './components/CommandForm'
 import { loadTasks, saveTasks } from './storage'
 import './App.css'
 
+interface Reminder { key: string; taskId: string; title: string; at: string }
 function App() {
   const [tasks, setTasks] = useState<Task[]>(loadTasks)
-  const triggeredReminderIds = useRef(new Set<string>())
-  const commandFormRef = useRef<CommandFormHandle | null>(null)
-  const [commandBusy, setCommandBusy] = useState(false)
-
+  const [dismissedReminders, setDismissedReminders] = useState(() => new Set<string>())
+  const [now, setNow] = useState(Date.now)
+  useEffect(() => { saveTasks(tasks) }, [tasks])
   useEffect(() => {
-    saveTasks(tasks)
-  }, [tasks])
-
-  useEffect(() => {
-    function checkReminders() {
-      const now = Date.now()
-
-      for (const task of tasks) {
-        const shouldTrigger =
-          !task.completed &&
-          task.reminderAt !== null &&
-          new Date(task.reminderAt).getTime() <= now &&
-          !triggeredReminderIds.current.has(task.id)
-
-        if (shouldTrigger) {
-          triggeredReminderIds.current.add(task.id)
-          window.alert(`Reminder: ${task.title}`)
-        }
-      }
-    }
-
-    checkReminders()
-
-    const intervalId = window.setInterval(checkReminders, 30_000)
-
-    return () => {
-      window.clearInterval(intervalId)
-    }
-  }, [tasks])
-
+    const timer = window.setInterval(() => setNow(Date.now()), 15_000)
+    return () => window.clearInterval(timer)
+  }, [])
+  // Derive visible reminders from saved tasks; dismissal records only that occurrence.
+  const reminders: Reminder[] = tasks.flatMap((task) => {
+    const at = dueReminder(task, now)
+    const key = `${task.id}:${at}`
+    return at && !dismissedReminders.has(key) ? [{ key, taskId: task.id, title: task.title, at }] : []
+  })
   function confirmOperations(operations: CommandResult['operations']) {
-    const updatedTasks = applyTaskOperations(tasks, operations)
-
-    for (const originalTask of tasks) {
-      const updatedTask = updatedTasks.find((task) => task.id === originalTask.id)
-
-      if (!updatedTask || originalTask.reminderAt !== updatedTask.reminderAt) {
-        triggeredReminderIds.current.delete(originalTask.id)
-      }
-    }
-
-    setTasks(updatedTasks)
+    // Synchronous validation reports failures to the voice confirmation workflow.
+    const updated = applyTaskOperations(tasks, operations)
+    setTasks(updated)
   }
-
-  function toggleTask(taskId: string) {
-    setTasks((currentTasks) =>
-      currentTasks.map((task) =>
-        task.id === taskId
-          ? { ...task, completed: !task.completed }
-          : task,
-      ),
-    )
-  }
-
-  return (
-    <main className="workspace">
-      <header className="workspace-header">
-        <h1>VoxOpus</h1>
-        <p>Speech powered tasks</p>
-      </header>
-
-      <CommandForm
-        ref={commandFormRef}
-        tasks={tasks}
-        onConfirm={confirmOperations}
-        onBusyChange={setCommandBusy}
-      />
-
-      <div className="workspace-body">
-        <section aria-labelledby="tasks-heading">
-          <h2 id="tasks-heading">Your tasks</h2>
-          <TaskList
-            tasks={tasks}
-            onToggle={toggleTask}
-            onEdit={(task) => commandFormRef.current?.startEditing(task)}
-            editDisabled={commandBusy}
-          />
-        </section>
-      </div>
-    </main>
-  )
+  return <main className="workspace">
+    <header className="workspace-header"><h1>VoxOpus</h1><p>Your schedule, spoken.</p></header>
+    {reminders.length > 0 && <section className="reminders" aria-labelledby="reminders-heading" role="status">
+      <h2 id="reminders-heading">A reminder for you</h2>
+      <ul>{reminders.map((reminder) => <li key={reminder.key}><strong>{reminder.title}</strong><p>{new Date(reminder.at).toLocaleString()}</p></li>)}</ul>
+      <p>Say “dismiss reminders” to close these. Keep this tab open for reminders.</p>
+    </section>}
+    <CommandForm tasks={tasks} onConfirm={confirmOperations} onDismissReminders={() => setDismissedReminders((previous) => new Set([...previous, ...reminders.map((item) => item.key)]))} />
+    <section className="schedule" aria-labelledby="tasks-heading">
+      <div className="schedule-heading"><h2 id="tasks-heading">Your schedule</h2><p>Say “complete” to finish a task, or “delete” to remove it.</p></div>
+      <TaskList tasks={tasks} now={now} />
+    </section>
+    <footer>Voice input only. Use the microphone to add tasks, make corrections, and confirm changes.</footer>
+  </main>
 }
-
 export default App

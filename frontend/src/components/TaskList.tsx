@@ -1,34 +1,11 @@
-import type { Task } from 'shared'
+import { displayedOccurrence, type Task } from 'shared'
 import { TaskItem } from './TaskItem'
-
-interface TaskListProps {
-  tasks: Task[]
-  onToggle: (taskId: string) => void
-  onEdit: (task: Task) => void
-  editDisabled: boolean
-}
-
-export function TaskList({
-  tasks,
-  onToggle,
-  onEdit,
-  editDisabled,
-}: TaskListProps) {
-  if (tasks.length === 0) {
-    return <p className="empty-state">No tasks yet. Add a task to get started.</p>
-  }
-
-  return (
-    <ul className="task-list">
-      {tasks.map((task) => (
-        <TaskItem
-          key={task.id}
-          task={task}
-          onToggle={onToggle}
-          onEdit={onEdit}
-          editDisabled={editDisabled}
-        />
-      ))}
-    </ul>
-  )
+export function TaskList({ tasks, now }: { tasks: Task[]; now: number }) {
+  if (!tasks.length) return <p className="empty-state">Your schedule is clear. Record a task or event to add it here.</p>
+  const ordered = [...tasks].sort((a, b) => {
+    if (a.completed !== b.completed) return Number(a.completed) - Number(b.completed)
+    const first = displayedOccurrence(a, now), second = displayedOccurrence(b, now)
+    return Date.parse(first.startsAt ?? first.dueAt ?? '9999-01-01') - Date.parse(second.startsAt ?? second.dueAt ?? '9999-01-01')
+  })
+  return <ul className="task-list">{ordered.map((task) => <TaskItem key={task.id} task={task} now={now} />)}</ul>
 }

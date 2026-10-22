@@ -3,13 +3,13 @@ import { TaskListSchema, type Task } from 'shared'
 const STORAGE_KEY = 'voxopus.tasks'
 
 export function loadTasks(): Task[] {
-  const storedTasks = localStorage.getItem(STORAGE_KEY)
-
-  if (!storedTasks) {
-    return []
-  }
-
   try {
+    const storedTasks = localStorage.getItem(STORAGE_KEY)
+
+    if (!storedTasks) {
+      return []
+    }
+
     const parsedData: unknown = JSON.parse(storedTasks)
     const result = TaskListSchema.safeParse(parsedData)
 

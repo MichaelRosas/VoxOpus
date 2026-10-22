@@ -1,60 +1,81 @@
-/* The header anchors the workspace; the divider separates identity from work. */
-.workspace { max-width: 1120px; margin: 0 auto; padding: 40px 40px 72px; }
-.workspace-header { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; padding-bottom: 24px; border-bottom: 1px solid var(--line); }
-.workspace-header p { color: var(--muted); }
-/* Related form fields stay close; the wider list is the main review surface. */
-.workspace-body { display: grid; grid-template-columns: minmax(280px, 340px) minmax(0, 1fr); gap: 56px; margin-top: 40px; align-items: start; }
-.task-form { display: flex; flex-direction: column; gap: 8px; }
-.task-form label { font-weight: 600; }
-.task-form input { width: 100%; min-width: 0; min-height: 48px; padding: 10px 12px; border: 1px solid #82978b; border-radius: 6px; color: var(--text); background: var(--surface); caret-color: var(--primary); }
-.task-form input::placeholder { color: var(--muted); opacity: 1; }
-/* Optional scheduling reads as one group rather than independent cards. */
-.schedule-fields { border: 0; margin: 16px 0 8px; padding: 0; display: flex; flex-direction: column; gap: 8px; min-width: 0; }
-.schedule-fields legend { padding: 0 0 12px; color: var(--muted); }
-.schedule-fields input + label { margin-top: 12px; }
-/* Solid primary buttons identify commits; secondary actions use quiet borders. */
-button { min-height: 44px; padding: 9px 16px; border: 1px solid var(--primary); border-radius: 6px; color: var(--primary); background: var(--surface); font-weight: 600; }
-button:hover { background: #e7eee9; }
-.primary-button { color: #fff; background: var(--primary); }
-.primary-button:hover { background: #193e30; }
-.form-actions { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 12px; }
-/* Command input is a distinct work area; its preview stays in the same flow. */
-.command-section { margin-top: 32px; padding-bottom: 32px; border-bottom: 1px solid var(--line); min-width: 0; }
-.command-form { display: flex; flex-direction: column; gap: 8px; }
-.command-form label { font-weight: 600; }
-.command-form textarea { width: 100%; box-sizing: border-box; min-width: 0; padding: 10px 12px; border: 1px solid #82978b; border-radius: 6px; color: var(--text); background: var(--surface); font: inherit; resize: vertical; }
-.dictation-button { display: inline-flex; align-items: center; justify-content: center; gap: 8px; }
-/* Disabled controls stay readable, while a neutral fill distinguishes availability. */
-.command-section button:disabled { color: var(--muted); background: #e7eee9; border-color: #82978b; cursor: not-allowed; }
-.command-form textarea:disabled { color: var(--text); opacity: 1; background: #edf2ef; }
-.command-form textarea { caret-color: var(--primary); }
-/* A stable status line avoids shifting the form as recording state changes. */
-.command-status { min-height: 24px; margin-top: 16px; color: var(--muted); }
-.command-error { margin-top: 12px; color: var(--accent); overflow-wrap: anywhere; }
-.command-clarification { margin-top: 24px; font-weight: 600; }
-/* Dividers group proposed changes without nesting cards; actions stay together. */
-.command-preview { margin-top: 28px; }
-.command-preview h3 { font-size: 18px; margin: 0 0 12px; }
-.command-preview ul { padding: 0; margin: 0; list-style: none; }
-.command-preview li { padding: 16px 0; border-top: 1px solid var(--line); overflow-wrap: anywhere; }
-.command-preview li p { margin-top: 4px; color: var(--muted); }
-/* Divided rows keep tasks together without nesting cards or hiding dates. */
-.task-list { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--line); }
-.task-row { padding: 24px 0; border-bottom: 1px solid var(--line); }
-.task-label { display: flex; align-items: start; gap: 12px; min-height: 44px; cursor: pointer; font-weight: 600; overflow-wrap: anywhere; }
-.task-label input { width: 22px; height: 22px; flex-shrink: 0; margin: 2px 0 0; accent-color: var(--primary); }
-.task-completed { text-decoration: line-through; color: var(--muted); }
-.task-details { margin-left: 34px; color: var(--muted); font-variant-numeric: tabular-nums; }
-.task-details p + p { margin-top: 4px; }
-.task-actions { display: flex; gap: 12px; margin: 16px 0 0 34px; }
-.delete-button { color: var(--accent); border-color: var(--accent); }
-.delete-button:hover { background: #f8ece7; }
-/* The empty state guides the existing action without simulated tasks or metrics. */
-.empty-state { border-top: 1px solid var(--line); padding-top: 24px; color: var(--muted); }
-/* Stacking preserves reading order and generous touch targets on small screens. */
-@media (max-width: 760px) {
-  .workspace { padding: 24px 20px 48px; }
+/* A bounded reading area keeps the voice workspace and schedule aligned. */
+.workspace { max-width: 1040px; margin: 0 auto; padding: 32px 40px 48px; }
+.workspace-header { display: flex; justify-content: space-between; align-items: baseline; gap: 16px; padding-bottom: 24px; border-bottom: 1px solid var(--line); }
+.workspace-header p, footer { color: var(--muted); }
+/* Center the single microphone action; examples sit above it to cue useful speech. */
+.voice-workspace { padding: 48px 0 40px; text-align: center; }
+.voice-intro { max-width: 640px; margin: 0 auto 28px; }
+.voice-intro h2 { font-size: 30px; margin-bottom: 16px; }
+.voice-intro p { max-width: 60ch; margin-inline: auto; }
+.voice-help { margin-top: 12px; color: var(--muted); }
+/* Solid fill indicates the action. Recording uses a static stop icon, not pulses or glow. */
+button { font: inherit; min-height: 44px; cursor: pointer; }
+.microphone-button { display: flex; align-items: center; justify-content: center; width: 88px; height: 88px; margin: 0 auto; border: 2px solid var(--primary); border-radius: 50%; color: white; background: var(--primary); }
+.microphone-button:hover { background: #193e30; }
+.microphone-button[aria-pressed='true'] { background: var(--accent); border-color: var(--accent); }
+.microphone-button:disabled { color: var(--muted); background: #e7eee9; border-color: #82978b; cursor: not-allowed; }
+.microphone-label { font-weight: 600; margin-top: 12px; }
+/* Reserve space for feedback; all instructions remain at a readable body size. */
+.command-status { min-height: 48px; max-width: 65ch; margin: 16px auto 0; color: var(--muted); }
+.command-error { color: var(--accent); margin: 16px auto 0; max-width: 65ch; }
+/* The transcript appears only after recording begins and is plain, non-editable output. */
+.transcript { text-align: left; margin: 28px auto 0; max-width: 720px; padding: 24px; background: var(--surface); border: 1px solid var(--line); }
+.transcript h3 { margin: 0 0 8px; }
+.transcript output { display: block; min-height: 24px; white-space: pre-wrap; overflow-wrap: anywhere; }
+.request-context { border-top: 1px solid var(--line); padding-top: 16px; margin-top: 20px; color: var(--muted); }
+.request-context p + p { margin-top: 8px; }
+/* Corrections and proposals follow the transcript without nesting decorative cards. */
+.clarification, .command-preview { max-width: 720px; margin: 28px auto 0; text-align: left; }
+.clarification h3, .command-preview h3 { margin: 0 0 12px; }
+.clarification p + p { margin-top: 12px; color: var(--muted); }
+.command-preview ul, .reminders ul { margin: 0; padding: 0; list-style: none; }
+.command-preview li { border-top: 1px solid var(--line); padding: 20px 0; }
+.command-preview h4 { font-size: 18px; margin: 0 0 8px; }
+.confirmation-help { margin-top: 16px; font-weight: 600; }
+/* Saved events use individual bordered surfaces, as requested, so each event is distinct. */
+.schedule { border-top: 1px solid var(--line); padding-top: 32px; }
+.schedule-heading { margin-bottom: 24px; }
+.schedule-heading h2 { margin-bottom: 8px; }
+.schedule-heading p { color: var(--muted); }
+.task-list { display: grid; gap: 16px; margin: 0; padding: 0; list-style: none; }
+.task-row { border: 1px solid #82978b; border-radius: 12px; background: var(--surface); padding: 24px; overflow-wrap: anywhere; }
+.task-row-completed { background: #edf2ef; }
+.task-title-line { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 8px 20px; }
+.task-title-line h3 { margin: 0; font-size: 22px; }
+.task-title-line span, .task-details { color: var(--muted); }
+.task-details p { margin-top: 6px; font-variant-numeric: tabular-nums; }
+.task-description { white-space: pre-wrap; }
+.task-completed { text-decoration: line-through; }
+.empty-state { padding: 24px 0; color: var(--muted); border-top: 1px solid var(--line); }
+/* Inline reminder feedback replaces the blocking browser alert and stays visible until dismissed. */
+.reminders { background: #e7eee9; padding: 24px; margin-top: 28px; }
+.reminders h2 { margin-bottom: 16px; }
+.reminders li + li { margin-top: 16px; }
+.reminders > p { margin-top: 16px; color: var(--muted); }
+footer { margin-top: 40px; padding-top: 24px; border-top: 1px solid var(--line); }
+/* Mobile keeps the microphone centered and lets long dates and task titles wrap naturally. */
+@media (max-width: 640px) {
+  .workspace { padding: 24px 20px 40px; }
   .workspace-header { align-items: start; flex-direction: column; gap: 8px; }
-  .workspace-body { grid-template-columns: minmax(0, 1fr); gap: 40px; margin-top: 28px; }
-  .task-details, .task-actions { margin-left: 0; }
+  .voice-workspace { padding-top: 32px; }
+  .voice-intro h2 { font-size: 26px; }
+  .transcript { padding: 20px; }
 }
+
+/* A spinner appears only during real interpretation work; status text carries its meaning. */
+.interpretation-spinner { display: inline-block; vertical-align: middle; margin-right: 8px; animation: interpreting 1s linear infinite; }
+@keyframes interpreting { to { transform: rotate(360deg); } }
+/* Reduced motion keeps the loading symbol and message visible without rotation. */
+@media (prefers-reduced-motion: reduce) {
+  .interpretation-spinner { animation: none; }
+}
+
+/* The saved receipt names actual outcomes and comes into view after voice confirmation. */
+.confirmation-receipt { display: flex; align-items: start; gap: 16px; max-width: 720px; margin: 24px auto 0; padding: 24px; text-align: left; background: #dcebe2; color: var(--primary); border: 1px solid #82978b; border-radius: 12px; }
+.confirmation-receipt svg { flex-shrink: 0; }
+.confirmation-receipt h3 { margin: 0 0 8px; font-size: 22px; }
+.confirmation-receipt ul { margin: 0; padding: 0; list-style: none; font-weight: 600; }
+.confirmation-receipt li + li { margin-top: 6px; }
+.confirmation-receipt p { margin-top: 12px; }
+/* Event times have stronger weight than supporting descriptions and reminder metadata. */
+.task-time { font-size: 18px; font-weight: 600; color: var(--primary); }

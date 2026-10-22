@@ -1,3 +1,4 @@
+/* Brand colors and 16px body text are shared by live feedback and the schedule. */
 :root {
   font-family: 'Avenir Next', 'Segoe UI', sans-serif;
   color: #24352f;
@@ -20,7 +21,8 @@ body { margin: 0; min-width: 320px; }
 h1 { font-family: 'Palatino Linotype', Palatino, serif; font-size: 32px; line-height: 1.2; font-weight: 700; margin: 0; }
 h2 { font-size: 22px; line-height: 1.3; margin: 0 0 20px; }
 p { margin: 0; }
-input, button { font: inherit; }
+h3 { font-size: 18px; }
+h4, h3, p { overflow-wrap: anywhere; }
 button { cursor: pointer; }
 :focus-visible { outline: 3px solid var(--accent); outline-offset: 3px; }
 ::selection { background: #dcebe2; color: var(--text); }

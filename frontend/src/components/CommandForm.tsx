@@ -1,237 +1,164 @@
-import { useEffect, useImperativeHandle, useRef, useState, type Ref, type SubmitEvent } from 'react'
-import { Mic, Square } from 'lucide-react'
+import { useEffect, useRef, useState } from 'react'
+import { CircleCheck, LoaderCircle, Mic, Square } from 'lucide-react'
 import type { CommandResult, Task } from 'shared'
+import { applyTaskOperations } from '../taskOperations'
 import { interpretCommand } from '../api'
 import { useSpeechRecognition } from '../hooks/useSpeechRecognition'
+import { voiceAction } from '../voiceCommands'
+import { TaskDetails } from './TaskDetails'
 
-export interface CommandFormHandle {
-  startEditing: (task: Task) => void
-}
-
-interface CommandFormProps {
-  ref?: Ref<CommandFormHandle>
+interface Props {
   tasks: Task[]
   onConfirm: (operations: CommandResult['operations']) => void
-  onBusyChange: (isBusy: boolean) => void
+  onDismissReminders: () => void
 }
 
-export function CommandForm({ ref, tasks, onConfirm, onBusyChange }: CommandFormProps) {
-  const [command, setCommand] = useState('')
+export function CommandForm({ tasks, onConfirm, onDismissReminders }: Props) {
+  const [history, setHistory] = useState<string[]>([])
+  const [lastRequest, setLastRequest] = useState<string[]>([])
+  const [transcript, setTranscript] = useState('')
+  const [hasRecorded, setHasRecorded] = useState(false)
   const [result, setResult] = useState<CommandResult | null>(null)
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const speech = useSpeechRecognition()
-  const sectionRef = useRef<HTMLElement | null>(null)
-  const inputRef = useRef<HTMLTextAreaElement | null>(null)
-  const requestInFlightRef = useRef(false)
-
+  const [receipt, setReceipt] = useState<string[]>([])
+  const receiptRef = useRef<HTMLElement | null>(null)
   useEffect(() => {
-    onBusyChange(isLoading || speech.isActive)
-  }, [isLoading, speech.isActive, onBusyChange])
+    if (receipt.length) receiptRef.current?.scrollIntoView?.({ block: 'nearest' })
+  }, [receipt])
+  const [message, setMessage] = useState('Record a request. We will interpret it when you finish speaking.')
+  const requestInFlight = useRef(false)
+  const speech = useSpeechRecognition()
 
-  useImperativeHandle(ref, () => ({
-    startEditing(task) {
-      if (isLoading || speech.isActive) return
-      startDictation(`Update the task ${JSON.stringify(task.title)}:`)
-      sectionRef.current?.scrollIntoView({ block: 'nearest' })
-      inputRef.current?.focus()
-    },
-  }))
-
-  function startDictation(initialCommand = command) {
-    if (isLoading || speech.isActive) return
-    const originalCommand = initialCommand.trimEnd()
-    setCommand(originalCommand)
-    setResult(null)
-    setError(null)
-    speech.start(
-      (transcript) => {
-        setCommand([originalCommand, transcript].filter(Boolean).join(' '))
-      },
-      (finalTranscript) => {
-        const finalCommand = [originalCommand, finalTranscript].filter(Boolean).join(' ')
-        void submitCommand(finalCommand)
-      },
-    )
-  }
-
-  async function handleSubmit(event: SubmitEvent<HTMLFormElement>) {
-    event.preventDefault()
-    if (!command.trim() || isLoading || speech.isActive) return
-    await submitCommand(command)
-  }
-
-  async function submitCommand(text: string) {
-    if (!text.trim() || requestInFlightRef.current) return
-
-    requestInFlightRef.current = true
-    setIsLoading(true)
-    setError(null)
-    setResult(null)
-
-    try {
-      setResult(await interpretCommand(text.trim(), tasks))
-    } catch (error) {
-      setError(
-        error instanceof Error ? error.message : 'Command request failed',
-      )
-    } finally {
-      requestInFlightRef.current = false
-      setIsLoading(false)
+  async function handleUtterance(text: string) {
+    if (!text.trim() || requestInFlight.current) return
+    const action = voiceAction(text)
+    if (action === 'dismiss-reminders') {
+      onDismissReminders()
+      setMessage('Reminders dismissed. Your tasks are unchanged.')
+      return
     }
-  }
-
-  function confirmTasks() {
-    if (!result || result.clarification !== null) return
-    if (result.operations.length === 0) return
-
-    try {
-      onConfirm(result.operations)
-      setResult(null)
-      setCommand('')
-      setError(null)
-    } catch (error) {
-      setError(
-        error instanceof Error ? error.message : 'Could not apply changes',
-      )
+    if (action === 'cancel') {
+      setResult(null); setHistory([]); setError(null)
+      setMessage('Changes discarded. Your last request is still visible; your saved tasks are unchanged.')
+      return
     }
+    if (action === 'confirm') {
+      if (!result || result.clarification !== null || result.operations.length === 0) {
+        setMessage('There are no changes ready to confirm. Record a request or answer the question below.')
+        return
+      }
+      try {
+        onConfirm(result.operations)
+        setReceipt(result.operations.map((operation) => {
+          if (operation.type === 'create') return `Added: ${operation.title}`
+          const original = tasks.find((task) => task.id === operation.taskId)
+          const title = original?.title ?? 'Task'
+          if (operation.type === 'delete') return `Deleted: ${title}`
+          if (operation.completed.action === 'set') {
+            return operation.completed.value
+              ? `Completed: ${title}${original?.recurrence ? '. Next occurrence scheduled if the series continues.' : ''}`
+              : `Reopened: ${title}`
+          }
+          return `Updated: ${operation.title.action === 'set' ? operation.title.value : title}`
+        }))
+        setResult(null); setHistory([]); setError(null)
+        setMessage('Changes saved. Record another request whenever you are ready.')
+      } catch (caught) {
+        setError(caught instanceof Error ? caught.message : 'Could not save changes. Please try again.')
+      }
+      return
+    }
+    if (history.length >= 16) {
+      setError('This request has many revisions. Say “cancel changes”, then record a fresh request. Your saved tasks are unchanged.')
+      return
+    }
+    requestInFlight.current = true
+    setIsLoading(true); setError(null)
+    // A new recording never erases prior intent. Corrections replace the proposal, not saved tasks.
+    const nextHistory = [...history, text]
+    setHistory(nextHistory); setLastRequest(nextHistory)
+    setResult(null)
+    try {
+      const proposal = await interpretCommand(text, tasks, history)
+      applyTaskOperations(tasks, proposal.operations) // Validate before presenting a confirmable proposal.
+      setResult(proposal)
+      setMessage(proposal.clarification ? 'Record your answer to the question below.'
+        : proposal.operations.length ? 'Review the proposal below. Record “confirm changes”, “cancel changes”, or a correction.'
+        : 'No changes proposed. Record a correction or say “cancel changes”.')
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : 'Could not interpret your request. Record again to retry.')
+      setMessage('Your request has been kept. Record “try again”, a correction, or “cancel changes”.')
+    } finally { requestInFlight.current = false; setIsLoading(false) }
   }
 
-  return (
-    <section ref={sectionRef} className="command-section" aria-labelledby="command-heading">
-      <h2 id="command-heading">Task command</h2>
-      <form className="command-form" onSubmit={handleSubmit}>
-        <label htmlFor="command-input">Type a command or use dictation</label>
-        <textarea
-          ref={inputRef}
-          id="command-input"
-          value={command}
-          disabled={isLoading || speech.isActive}
-          rows={3}
-          aria-describedby="dictation-status"
-          onChange={(event) => {
-            setCommand(event.target.value)
-            setResult(null)
-            setError(null)
-          }}
-        />
-        <div className="form-actions">
-          {speech.isSupported && (
-            <button
-              type="button"
-              className="dictation-button"
-              onClick={speech.isActive ? speech.stop : () => startDictation()}
-              disabled={isLoading || speech.status === 'starting' || speech.status === 'stopping'}
-              title={speech.isActive ? 'Stop dictation' : 'Start dictation'}
-              aria-label={speech.isActive ? 'Stop dictation' : 'Start dictation'}
-            >
-              {speech.isActive ? <Square size={18} aria-hidden="true" /> : <Mic size={18} aria-hidden="true" />}
-              {speech.isActive ? 'Stop dictation' : 'Start dictation'}
-            </button>
-          )}
-          <button className="primary-button" type="submit" disabled={isLoading || speech.isActive || !command.trim()}>
-            {isLoading ? 'Processing…' : 'Interpret'}
-          </button>
-        </div>
-      </form>
-      <p className="command-status" id="dictation-status" role="status">
-        {isLoading
-          ? 'Interpreting command...'
-          : !speech.isSupported
-          ? 'Voice dictation is unavailable in this browser.'
-          : speech.status === 'starting'
-            ? 'Starting microphone...'
-            : speech.status === 'listening'
-              ? 'Listening...'
-              : speech.status === 'stopping'
-                ? 'Finishing dictation...'
-                : 'Ready for a command.'}
-      </p>
-      {speech.error && <p className="command-error" role="alert">{speech.error}</p>}
-      {error && <p className="command-error" role="alert">{error}</p>}
-      {result?.clarification && <p className="command-clarification">{result.clarification}</p>}
-      {result && result.clarification === null && (
-        <div className="command-preview">
-          <h3>Review changes</h3>
-          <ul>
-            {result.operations.map((operation, index) => {
-              if (operation.type === 'create') {
-                return (
-                  <li key={index}>
-                    <strong>Create: {operation.title}</strong>
-                    {operation.dueAt && (
-                      <p>Due: {new Date(operation.dueAt).toLocaleString()}</p>
-                    )}
-                    {operation.reminderAt && (
-                      <p>
-                        Reminder: {new Date(operation.reminderAt).toLocaleString()}
-                      </p>
-                    )}
-                  </li>
-                )
-              }
+  function startRecording() {
+    if (isLoading || speech.isActive || requestInFlight.current) return
+    setHasRecorded(true); setTranscript(''); setError(null); setReceipt([])
+    speech.start((text) => { if (text) setTranscript(text) }, (final) => { void handleUtterance(final) })
+  }
 
-              const task = tasks.find((task) => task.id === operation.taskId)
+  // Compute each row from the preceding operation so multi-step previews match confirmation.
+  let proposedTasks = tasks
+  const previews = result?.operations.map((operation) => {
+    const original = operation.type === 'create' ? undefined : proposedTasks.find((task) => task.id === operation.taskId)
+    const beforeIds = new Set(proposedTasks.map((task) => task.id))
+    proposedTasks = applyTaskOperations(proposedTasks, [operation])
+    const after = operation.type === 'delete' ? undefined : proposedTasks.find((task) =>
+      operation.type === 'create' ? !beforeIds.has(task.id) : task.id === operation.taskId)
+    return { operation, original, after }
+  }) ?? []
 
-              if (operation.type === 'delete') {
-                return (
-                  <li key={index}>
-                    <strong>Delete: {task?.title ?? 'Task no longer available'}</strong>
-                  </li>
-                )
-              }
-
-              return (
-                <li key={index}>
-                  <strong>Update: {task?.title ?? 'Task no longer available'}</strong>
-
-                  {operation.title.action === 'set' && (
-                    <p>Title: {operation.title.value}</p>
-                  )}
-
-                  {operation.completed.action === 'set' && (
-                    <p>
-                      Status: {operation.completed.value ? 'Complete' : 'Incomplete'}
-                    </p>
-                  )}
-
-                  {operation.dueAt.action === 'set' && (
-                    <p>
-                      Due:{' '}
-                      {operation.dueAt.value === null
-                        ? 'Remove due date'
-                        : new Date(operation.dueAt.value).toLocaleString()}
-                    </p>
-                  )}
-
-                  {operation.reminderAt.action === 'set' && (
-                    <p>
-                      Reminder:{' '}
-                      {operation.reminderAt.value === null
-                        ? 'Remove reminder'
-                        : new Date(operation.reminderAt.value).toLocaleString()}
-                    </p>
-                  )}
-                </li>
-              )
-            })}
-          </ul>
-          {result.operations.length === 0 && <p>No changes proposed.</p>}
-          <div className="form-actions">
-            <button
-              className="primary-button"
-              type="button"
-              onClick={confirmTasks}
-              disabled={result.operations.length === 0}
-            >
-              Confirm changes
-            </button>
-            <button type="button" onClick={() => setResult(null)}>
-              Cancel
-            </button>
-          </div>
-        </div>
-      )}
-    </section>
-  )
+  return <section className="voice-workspace" aria-labelledby="voice-heading">
+    <div className="voice-intro">
+      <h2 id="voice-heading">What’s on your schedule?</h2>
+      <p>Try “Add a quiz every Thursday from 5 to 6 pm” or “Remind me to read tomorrow at 4 pm”.</p>
+      <p className="voice-help">Create, describe, change, complete, or delete tasks by voice.</p>
+    </div>
+    <button type="button" className="microphone-button"
+      onClick={speech.isActive ? speech.stop : startRecording}
+      disabled={!speech.isSupported || isLoading || speech.status === 'starting' || speech.status === 'stopping'}
+      aria-label={isLoading ? 'Interpreting request' : speech.isActive ? 'Stop recording' : 'Start recording'}
+      aria-busy={isLoading}
+      aria-describedby="dictation-status" aria-pressed={speech.isActive}>
+      {speech.isActive ? <Square size={32} aria-hidden="true" /> : <Mic size={36} aria-hidden="true" />}
+    </button>
+    <p className="microphone-label">{isLoading ? 'Interpreting request' : speech.isActive ? 'Stop recording' : 'Record a request'}</p>
+    <p className="command-status" id="dictation-status" role="status">
+      {isLoading && <LoaderCircle className="interpretation-spinner" size={22} aria-hidden="true" />}
+      {!speech.isSupported ? 'Speech recognition is unavailable. Open this app in a browser that supports microphone dictation.'
+        : isLoading ? 'Interpreting your request. Your saved tasks have not changed.'
+        : speech.status === 'starting' ? 'Starting microphone…'
+        : speech.status === 'listening' ? 'Listening. Speak your request, then pause or press Stop.'
+        : speech.status === 'stopping' ? 'Finishing your recording…' : message}
+    </p>
+    {(speech.error || error) && <p className="command-error" role="alert">{speech.error || error}</p>}
+    {receipt.length > 0 && <section ref={receiptRef} className="confirmation-receipt" role="status" aria-labelledby="saved-heading">
+      <CircleCheck size={28} aria-hidden="true" />
+      <div><h3 id="saved-heading">Changes saved</h3><ul>{receipt.map((item, index) => <li key={index}>{item}</li>)}</ul>
+      <p>Your schedule below is up to date.</p></div>
+    </section>}
+    {hasRecorded && <section className="transcript" aria-labelledby="transcript-heading">
+      <h3 id="transcript-heading">{speech.isActive ? 'What you’re saying' : 'What we heard'}</h3>
+      <output aria-live="off">{transcript || 'Your words will appear here while you speak.'}</output>
+      {lastRequest.length > 0 && <div className="request-context"><h3>{history.length ? 'Current request' : 'Last request'}</h3>
+        {lastRequest.map((part, index) => <p key={index}>{part}</p>)}
+      </div>}
+    </section>}
+    {result?.clarification && <section className="clarification" aria-labelledby="question-heading">
+      <h3 id="question-heading">One detail to clarify</h3><p>{result.clarification}</p>
+      <p>Record your answer. Your original request will be kept.</p>
+    </section>}
+    {result && !result.clarification && result.operations.length > 0 && <section className="command-preview" aria-labelledby="review-heading">
+      <h3 id="review-heading">Proposed changes</h3>
+      <ul>{previews.map(({ operation, original, after }, index) => {
+        return <li key={index}>
+          <h4>{operation.type === 'delete' ? 'Delete' : operation.type === 'create' ? 'Add' : 'Change'}: {after?.title ?? original?.title ?? 'Task'}</h4>
+          {operation.type === 'delete' && <p>{original?.recurrence ? 'This removes the entire recurring series and its reminders.' : 'This removes the task and its reminder.'}</p>}
+          {after && <><p>{after.completed ? 'Completed' : 'Open'}{original?.recurrence && operation.type === 'update' && operation.completed.action === 'set' && operation.completed.value ? ' · Current occurrence complete; next occurrence scheduled' : ''}</p><TaskDetails task={after} /></>}
+        </li>
+      })}</ul>
+      <p className="confirmation-help">Say “confirm changes” to save, “cancel changes” to discard, or record a correction.</p>
+    </section>}
+  </section>
 }

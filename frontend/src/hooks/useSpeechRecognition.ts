@@ -12,6 +12,7 @@ interface SpeechResultEvent {
 }
 
 interface SpeechRecognizer {
+  processLocally?: boolean
   lang: string
   continuous: boolean
   interimResults: boolean
@@ -26,7 +27,10 @@ interface SpeechRecognizer {
   abort: () => void
 }
 
-type SpeechConstructor = new () => SpeechRecognizer
+type SpeechConstructor = {
+  new (): SpeechRecognizer
+  available?: (options: { langs: string[]; processLocally: boolean }) => Promise<string>
+}
 type SpeechWindow = Window & {
   SpeechRecognition?: SpeechConstructor
   webkitSpeechRecognition?: SpeechConstructor
@@ -48,16 +52,17 @@ function errorMessage(code: string) {
     case 'no-speech':
       return 'No speech was detected. Try again.'
     case 'network':
-      return 'Speech recognition could not connect. Check your internet connection.'
+      return 'The browser’s speech service could not connect. Try another network or check your VPN or proxy. Your pending request is still here.'
     case 'language-not-supported':
       return 'English speech recognition is not available in this browser.'
     default:
-      return 'Speech recognition failed. Try again or type your command.'
+      return 'Speech recognition failed. Please record your request again.'
   }
 }
 
 export function useSpeechRecognition() {
   const earconsRef = useRef<ReturnType<typeof createEarcons> | null>(null)
+  const localRecognitionReady = useRef(false)
   const recognitionRef = useRef<SpeechRecognizer | null>(null)
   const stopRequestedRef = useRef(false)
   const [status, setStatus] = useState<'idle' | 'starting' | 'listening' | 'stopping'>('idle')
@@ -65,6 +70,14 @@ export function useSpeechRecognition() {
   const isSupported = Boolean(getSpeechConstructor())
 
   useEffect(() => {
+    let active = true
+    const Constructor = getSpeechConstructor()
+    // Prefer an already-installed local language pack. Never download one silently.
+    if (Constructor?.available) {
+      void Constructor.available({ langs: ['en-US'], processLocally: true })
+        .then((availability) => { if (active) localRecognitionReady.current = availability === 'available' })
+        .catch(() => { /* Older browsers or policy restrictions retain normal recognition. */ })
+    }
     if (isSupported && typeof AudioContext !== 'undefined') {
       try {
         earconsRef.current = createEarcons()
@@ -74,6 +87,7 @@ export function useSpeechRecognition() {
       }
     }
     return () => {
+      active = false
       earconsRef.current?.dispose()
       earconsRef.current = null
       const recognition = recognitionRef.current
@@ -99,11 +113,13 @@ export function useSpeechRecognition() {
 
     const recognition = new Constructor()
     recognition.lang = 'en-US'
-    recognition.continuous = true
+    if (localRecognitionReady.current && 'processLocally' in recognition) recognition.processLocally = true
+    recognition.continuous = false
     recognition.interimResults = true
-    let finalTranscript = ''
+    let latestTranscript = ''
     let isRecording = false
     let hasError = false
+    let ended = false
     stopRequestedRef.current = false
     earconsRef.current?.unlock()
 
@@ -134,24 +150,28 @@ export function useSpeechRecognition() {
         else interimParts.push(text)
       }
 
-      finalTranscript = finalParts.join(' ')
-      onTranscript([...finalParts, ...interimParts].join(' '))
+      latestTranscript = [...finalParts, ...interimParts].join(' ').trim()
+      onTranscript(latestTranscript)
     }
     recognition.onerror = (event) => {
+      // Safari can report no-speech at session end despite having delivered interim words.
+      if (event.error === 'no-speech' && latestTranscript) return
       hasError = true
       if (event.error !== 'aborted') setError(errorMessage(event.error))
     }
     recognition.onend = () => {
+      if (ended) return
+      ended = true
       // Some engines end recognition without a separate audioend event.
       finishRecording()
-      onTranscript(finalTranscript)
+      // Safari may finish without marking its last visible result final. Keep those words.
+      onTranscript(latestTranscript)
       recognitionRef.current = null
       setStatus('idle')
-      const wasStopped = stopRequestedRef.current
       stopRequestedRef.current = false
-      if (wasStopped && !hasError) {
-        if (finalTranscript.trim()) onStopped?.(finalTranscript)
-        else setError('No speech was detected. Try again or type your command.')
+      if (!hasError) {
+        if (latestTranscript) onStopped?.(latestTranscript)
+        else setError('No speech was detected. Please record your request again.')
       }
     }
 
@@ -176,7 +196,7 @@ export function useSpeechRecognition() {
       recognitionRef.current.stop()
     } catch {
       stopRequestedRef.current = false
-      setError('Could not finish dictation. Review the transcript before interpreting.')
+      setError('Could not finish dictation. Your tasks are unchanged. Please record again.')
       recognitionRef.current.abort()
     }
   }
