@@ -17,6 +17,8 @@ class Recognition {
   onstart: (() => void) | null = null
   onaudiostart: (() => void) | null = null
   onaudioend: (() => void) | null = null
+  onspeechstart: (() => void) | null = null
+  onspeechend: (() => void) | null = null
   onend: (() => void) | null = null
   onresult: ((event: unknown) => void) | null = null
   onerror: ((event: unknown) => void) | null = null
@@ -113,7 +115,7 @@ test('Safari interim-only confirmation is retained and applied when recording en
   })
   assert.equal(confirmations.length, 1)
   assert.match(text(), /Changes saved/)
-  assert.doesNotMatch(text(), /No speech was detected/)
+  assert.doesNotMatch(text(), /No speech detected/)
 })
 test('Safari no-speech after interim words does not discard a real utterance', async () => {
   await act(async () => { document.querySelector('button')!.click() })
@@ -153,8 +155,62 @@ test('interpretation shows a busy loading symbol only while the request is pendi
   assert.ok(document.querySelector('.interpretation-spinner'))
   assert.equal(document.querySelector('button')?.getAttribute('aria-busy'), 'true')
   assert.equal(document.querySelector('button')?.disabled, true)
-  assert.match(text(), /Interpreting your request/)
+  assert.match(text(), /Interpreting command/)
   await act(async () => { finish(new Response(JSON.stringify(proposal), { status: 200 })); await tick() })
   assert.equal(document.querySelector('.interpretation-spinner'), null)
   assert.equal(document.querySelector('button')?.disabled, false)
+})
+
+test('a two-second pause stops recording and interprets without a Stop click', async (context) => {
+  context.mock.timers.enable({ apis: ['setTimeout'] })
+  await act(async () => { document.querySelector('button')!.click() })
+  await act(async () => {
+    Recognition.current.onresult?.({ results: [{ isFinal: true, length: 1, 0: { transcript: 'Add a quiz Thursday' } }] })
+    context.mock.timers.tick(1999)
+  })
+  assert.equal(requests.length, 0)
+  await act(async () => { context.mock.timers.tick(1) })
+  assert.equal(requests.length, 1)
+  assert.equal(requests[0]?.command, 'Add a quiz Thursday')
+  assert.equal(confirmations.length, 0)
+  await act(async () => { Recognition.current.onend?.(); context.mock.timers.tick(10000) })
+  assert.equal(requests.length, 1)
+})
+
+test('additional speech resets the pause timer and the complete transcript is interpreted', async (context) => {
+  context.mock.timers.enable({ apis: ['setTimeout'] })
+  await act(async () => { document.querySelector('button')!.click() })
+  await act(async () => {
+    Recognition.current.onresult?.({ results: [{ isFinal: false, length: 1, 0: { transcript: 'Add a quiz' } }] })
+    context.mock.timers.tick(1500)
+    Recognition.current.onspeechstart?.()
+    context.mock.timers.tick(1000)
+    Recognition.current.onresult?.({ results: [{ isFinal: true, length: 1, 0: { transcript: 'Add a quiz Thursday at five' } }] })
+    context.mock.timers.tick(1999)
+  })
+  assert.equal(requests.length, 0)
+  await act(async () => { context.mock.timers.tick(1) })
+  assert.equal(requests.length, 1)
+  assert.equal(requests[0]?.command, 'Add a quiz Thursday at five')
+})
+
+test('an empty recording times out without interpreting', async (context) => {
+  context.mock.timers.enable({ apis: ['setTimeout'] })
+  await act(async () => { document.querySelector('button')!.click(); context.mock.timers.tick(10000) })
+  assert.equal(requests.length, 0)
+  assert.match(text(), /No speech detected/)
+  assert.equal(document.querySelector('button')?.getAttribute('aria-pressed'), 'false')
+})
+
+test('a recognition error cancels automatic stopping and never submits interim words', async (context) => {
+  context.mock.timers.enable({ apis: ['setTimeout'] })
+  await act(async () => { document.querySelector('button')!.click() })
+  await act(async () => {
+    Recognition.current.onresult?.({ results: [{ isFinal: false, length: 1, 0: { transcript: 'Delete homework' } }] })
+    Recognition.current.onerror?.({ error: 'network' })
+    context.mock.timers.tick(10000)
+    Recognition.current.onend?.()
+  })
+  assert.equal(requests.length, 0)
+  assert.equal(confirmations.length, 0)
 })

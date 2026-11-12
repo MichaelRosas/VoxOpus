@@ -18,6 +18,8 @@ interface SpeechRecognizer {
   interimResults: boolean
   onaudiostart: (() => void) | null
   onaudioend: (() => void) | null
+  onspeechstart: (() => void) | null
+  onspeechend: (() => void) | null
   onstart: (() => void) | null
   onend: (() => void) | null
   onresult: ((event: SpeechResultEvent) => void) | null
@@ -50,13 +52,13 @@ function errorMessage(code: string) {
     case 'audio-capture':
       return 'No microphone is available. Check your microphone connection.'
     case 'no-speech':
-      return 'No speech was detected. Try again.'
+      return 'No speech detected. Record again.'
     case 'network':
-      return 'The browser’s speech service could not connect. Try another network or check your VPN or proxy. Your pending request is still here.'
+      return 'Speech service connection failed. Check your network, VPN, or proxy.'
     case 'language-not-supported':
       return 'English speech recognition is not available in this browser.'
     default:
-      return 'Speech recognition failed. Please record your request again.'
+      return 'Speech recognition failed. Record again.'
   }
 }
 
@@ -65,9 +67,17 @@ export function useSpeechRecognition() {
   const localRecognitionReady = useRef(false)
   const recognitionRef = useRef<SpeechRecognizer | null>(null)
   const stopRequestedRef = useRef(false)
+  const silenceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const [status, setStatus] = useState<'idle' | 'starting' | 'listening' | 'stopping'>('idle')
   const [error, setError] = useState<string | null>(null)
   const isSupported = Boolean(getSpeechConstructor())
+
+  function clearSilenceTimer() {
+    if (silenceTimerRef.current !== null) {
+      clearTimeout(silenceTimerRef.current)
+      silenceTimerRef.current = null
+    }
+  }
 
   useEffect(() => {
     let active = true
@@ -88,12 +98,15 @@ export function useSpeechRecognition() {
     }
     return () => {
       active = false
+      clearSilenceTimer()
       earconsRef.current?.dispose()
       earconsRef.current = null
       const recognition = recognitionRef.current
       if (!recognition) return
       recognition.onaudiostart = null
       recognition.onaudioend = null
+      recognition.onspeechstart = null
+      recognition.onspeechend = null
       recognition.onstart = null
       recognition.onend = null
       recognition.onresult = null
@@ -123,6 +136,14 @@ export function useSpeechRecognition() {
     stopRequestedRef.current = false
     earconsRef.current?.unlock()
 
+    function stopAfterPause(delay = 2000) {
+      clearSilenceTimer()
+      silenceTimerRef.current = setTimeout(() => {
+        silenceTimerRef.current = null
+        if (recognitionRef.current === recognition && !ended) stop()
+      }, delay)
+    }
+
     // Cue actual microphone capture, not button clicks or failed permission requests.
     recognition.onaudiostart = () => {
       if (isRecording) return
@@ -136,7 +157,12 @@ export function useSpeechRecognition() {
     }
     recognition.onaudioend = finishRecording
 
-    recognition.onstart = () => setStatus('listening')
+    recognition.onstart = () => {
+      setStatus('listening')
+      stopAfterPause(10000)
+    }
+    recognition.onspeechstart = clearSilenceTimer
+    recognition.onspeechend = () => stopAfterPause()
     recognition.onresult = (event) => {
       const finalParts: string[] = []
       const interimParts: string[] = []
@@ -152,8 +178,10 @@ export function useSpeechRecognition() {
 
       latestTranscript = [...finalParts, ...interimParts].join(' ').trim()
       onTranscript(latestTranscript)
+      if (latestTranscript) stopAfterPause()
     }
     recognition.onerror = (event) => {
+      clearSilenceTimer()
       // Safari can report no-speech at session end despite having delivered interim words.
       if (event.error === 'no-speech' && latestTranscript) return
       hasError = true
@@ -162,6 +190,7 @@ export function useSpeechRecognition() {
     recognition.onend = () => {
       if (ended) return
       ended = true
+      clearSilenceTimer()
       // Some engines end recognition without a separate audioend event.
       finishRecording()
       // Safari may finish without marking its last visible result final. Keep those words.
@@ -171,7 +200,7 @@ export function useSpeechRecognition() {
       stopRequestedRef.current = false
       if (!hasError) {
         if (latestTranscript) onStopped?.(latestTranscript)
-        else setError('No speech was detected. Please record your request again.')
+        else setError('No speech detected. Record again.')
       }
     }
 
@@ -182,6 +211,7 @@ export function useSpeechRecognition() {
     try {
       recognition.start()
     } catch {
+      clearSilenceTimer()
       recognitionRef.current = null
       setStatus('idle')
       setError('Could not start speech recognition. Try again.')
@@ -189,6 +219,7 @@ export function useSpeechRecognition() {
   }
 
   function stop() {
+    clearSilenceTimer()
     if (!recognitionRef.current || stopRequestedRef.current) return
     stopRequestedRef.current = true
     setStatus('stopping')
@@ -196,7 +227,7 @@ export function useSpeechRecognition() {
       recognitionRef.current.stop()
     } catch {
       stopRequestedRef.current = false
-      setError('Could not finish dictation. Your tasks are unchanged. Please record again.')
+      setError('Could not finish dictation. Record again.')
       recognitionRef.current.abort()
     }
   }

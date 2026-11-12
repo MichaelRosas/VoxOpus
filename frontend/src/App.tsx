@@ -28,18 +28,17 @@ function App() {
     setTasks(updated)
   }
   return <main className="workspace">
-    <header className="workspace-header"><h1>VoxOpus</h1><p>Your schedule, spoken.</p></header>
+    <header className="workspace-header"><h1>VoxOpus</h1><p>Speech-powered task management.</p></header>
     {reminders.length > 0 && <section className="reminders" aria-labelledby="reminders-heading" role="status">
-      <h2 id="reminders-heading">A reminder for you</h2>
+      <h2 id="reminders-heading">Reminders</h2>
       <ul>{reminders.map((reminder) => <li key={reminder.key}><strong>{reminder.title}</strong><p>{new Date(reminder.at).toLocaleString()}</p></li>)}</ul>
-      <p>Say “dismiss reminders” to close these. Keep this tab open for reminders.</p>
+      <p>Say "dismiss reminders" to dismiss. Keep this tab open to receive reminders.</p>
     </section>}
     <CommandForm tasks={tasks} onConfirm={confirmOperations} onDismissReminders={() => setDismissedReminders((previous) => new Set([...previous, ...reminders.map((item) => item.key)]))} />
     <section className="schedule" aria-labelledby="tasks-heading">
-      <div className="schedule-heading"><h2 id="tasks-heading">Your schedule</h2><p>Say “complete” to finish a task, or “delete” to remove it.</p></div>
+      <div className="schedule-heading"><h2 id="tasks-heading">Tasks</h2></div>
       <TaskList tasks={tasks} now={now} />
     </section>
-    <footer>Voice input only. Use the microphone to add tasks, make corrections, and confirm changes.</footer>
   </main>
 }
 export default App
